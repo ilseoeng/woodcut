@@ -1,0 +1,2358 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>아이린가구 - AI 목재 견적 채팅</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Noto Sans KR', sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #2c3e50, #3498db);
+      color: #fff;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .header .subtitle {
+      font-size: 11px;
+      opacity: .8;
+    }
+
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .chat-panel {
+      width: 420px;
+      min-width: 320px;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #ddd;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    .preview-panel {
+      flex: 1;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      position: relative;
+    }
+
+    .preview-canvas-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #previewCanvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: #ccc;
+      border-radius: 3px;
+    }
+
+    .msg {
+      max-width: 92%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      word-break: break-word;
+      animation: fadeIn .3s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .bot-msg {
+      background: #f0f4ff;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      color: #222;
+    }
+
+    .user-msg {
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: #fff;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-input-area {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      border-top: 1px solid #eee;
+      background: #fafafa;
+    }
+
+    .chat-input-area input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 24px;
+      font-size: 13.5px;
+      outline: none;
+      transition: border .2s;
+    }
+
+    .chat-input-area input:focus {
+      border-color: #3498db;
+    }
+
+    .chat-input-area button {
+      padding: 10px 18px;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: #fff;
+      border: none;
+      border-radius: 24px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .quick-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .quick-btn {
+      display: inline-block;
+      padding: 6px 12px;
+      background: #fff;
+      border: 1.5px solid #3498db;
+      color: #3498db;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all .2s;
+      font-weight: 500;
+    }
+
+    .quick-btn:hover {
+      background: #3498db;
+      color: #fff;
+    }
+
+    .estimate-card {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      margin-top: 8px;
+    }
+
+    .estimate-card h3 {
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    .estimate-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, .15);
+    }
+
+    .estimate-row:last-child {
+      border: none;
+    }
+
+    .estimate-total {
+      font-size: 18px;
+      font-weight: 700;
+      text-align: right;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 2px solid rgba(255, 255, 255, .3);
+    }
+
+    .estimate-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .estimate-actions button {
+      flex: 1;
+      padding: 8px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-add-order {
+      background: #2ecc71;
+      color: #fff;
+    }
+
+    .btn-add-order:hover {
+      background: #27ae60;
+    }
+
+    .btn-new-est {
+      background: rgba(255, 255, 255, .2);
+      color: #fff;
+    }
+
+    .btn-new-est:hover {
+      background: rgba(255, 255, 255, .35);
+    }
+
+    .preview-header {
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, .3);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .preview-info {
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, .2);
+      color: #82b1ff;
+      font-size: 12px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .order-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100%;
+      background: rgba(255, 255, 255, .97);
+      box-shadow: -4px 0 20px rgba(0, 0, 0, .15);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .order-panel-header {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #2c3e50, #3498db);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .order-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .order-item {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 12.5px;
+      border-left: 4px solid #3498db;
+    }
+
+    .order-item .oi-title {
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 4px;
+    }
+
+    .order-item .oi-detail {
+      color: #666;
+    }
+
+    .order-item .oi-price {
+      font-weight: 700;
+      color: #e74c3c;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .order-item .oi-remove {
+      float: right;
+      background: none;
+      border: none;
+      color: #e74c3c;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .order-panel-footer {
+      padding: 12px 16px;
+      border-top: 1px solid #eee;
+      background: #fff;
+    }
+
+    .order-panel-footer .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 15px;
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+
+    .btn-checkout {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .status-bar {
+      background: #2c3e50;
+      color: #82b1ff;
+      padding: 6px 20px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .customer-form {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 8px;
+      border: 1px solid #e0e0e0;
+    }
+
+    .customer-form h4 {
+      margin-bottom: 10px;
+      color: #2c3e50;
+    }
+
+    .form-row {
+      margin-bottom: 8px;
+    }
+
+    .form-row label {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 3px;
+    }
+
+    .form-row input,
+    .form-row textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .form-row input:focus,
+    .form-row textarea:focus {
+      border-color: #3498db;
+    }
+
+    .btn-submit-order {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .payment-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .payment-link {
+      flex: 1;
+      min-width: 120px;
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    /* 가공 옵션 (복수 선택 - 원본 스타일) */
+    .proc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .proc-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 2px solid #ddd;
+      padding: 8px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: all .2s;
+      font-size: 11px;
+      background: #fff;
+    }
+
+    .proc-item img {
+      width: 100%;
+      max-width: 60px;
+      height: auto;
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+
+    .proc-item.selected {
+      border: 3px solid #007bff;
+      box-shadow: 0 0 5px rgba(0, 123, 255, .5);
+      background: #f0f7ff;
+    }
+
+    .proc-item.disabled {
+      opacity: .4;
+      pointer-events: none;
+    }
+
+    /* 가공 서브옵션 */
+    .proc-sub {
+      margin-top: 8px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      border: 1px solid #e0e0e0;
+      font-size: 12px;
+    }
+
+    .proc-sub .sub-title {
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 6px;
+    }
+
+    .proc-sub select,
+    .proc-sub input[type="number"] {
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .side-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .side-item {
+      padding: 6px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all .2s;
+      background: #fff;
+    }
+
+    .side-item:hover {
+      border-color: #3498db;
+    }
+
+    .side-item.active {
+      border-color: #e74c3c;
+      background: #fff0f0;
+      color: #e74c3c;
+    }
+
+    .typing-indicator {
+      display: flex;
+      gap: 4px;
+      padding: 8px 14px;
+      align-self: flex-start;
+    }
+
+    .typing-indicator span {
+      width: 8px;
+      height: 8px;
+      background: #aaa;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+
+    .typing-indicator span:nth-child(2) {
+      animation-delay: .2s;
+    }
+
+    .typing-indicator span:nth-child(3) {
+      animation-delay: .4s;
+    }
+
+    @keyframes bounce {
+
+      0%,
+      80%,
+      100% {
+        transform: scale(0)
+      }
+
+      40% {
+        transform: scale(1)
+      }
+    }
+
+    /* 목재 선택 버튼 */
+    .wood-btn-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 4px 0;
+    }
+
+    .wood-select-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      background: #fff;
+      cursor: pointer;
+      transition: all .2s;
+      color: #333;
+    }
+
+    .wood-select-btn:hover {
+      border-color: #3498db;
+      background: #f0f7ff;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(52, 152, 219, .15);
+    }
+
+    .wood-select-btn.active {
+      border-color: #2ecc71;
+      background: #f0fff4;
+    }
+
+    .wood-select-btn .wood-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid rgba(0, 0, 0, .1);
+    }
+
+    .wood-select-btn .wood-label {
+      flex: 1;
+    }
+
+    .wood-select-btn .wood-label .wname {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .wood-select-btn .wood-label .wdesc {
+      font-size: 11px;
+      color: #888;
+      margin-top: 1px;
+    }
+
+    .wood-select-btn .arrow-icon {
+      font-size: 16px;
+      color: #aaa;
+    }
+
+    .wood-detail-card {
+      border-radius: 12px;
+      overflow: hidden;
+      background: #1a1a2e;
+      margin-top: 6px;
+      animation: wdSlide .3s ease;
+    }
+
+    @keyframes wdSlide {
+      from {
+        opacity: 0;
+        transform: translateY(-8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .wood-detail-card img {
+      width: 100%;
+      display: block;
+      max-height: 180px;
+      object-fit: cover;
+    }
+
+    .wood-detail-actions {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      background: #1a1a2e;
+    }
+
+    .wood-detail-actions button {
+      flex: 1;
+      padding: 9px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-select-wood {
+      background: #2ecc71;
+      color: #fff;
+    }
+
+    .btn-select-wood:hover {
+      background: #27ae60;
+    }
+
+    .btn-youtube {
+      background: #ff0000;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .btn-youtube:hover {
+      background: #cc0000;
+    }
+
+    .btn-youtube svg {
+      width: 16px;
+      height: 16px;
+      fill: #fff;
+    }
+
+    .event-tag {
+      display: inline-block;
+      background: #fff0f6;
+      color: #e11d78;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      border: 1px solid #ffc2d8;
+      margin-bottom: 4px;
+    }
+
+    @media(max-width:800px) {
+      .main {
+        flex-direction: column;
+      }
+
+      .chat-panel {
+        width: 100%;
+        max-width: 100%;
+        height: 50vh;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .preview-panel {
+        height: 50vh;
+      }
+
+      .order-panel {
+        width: 100%;
+      }
+
+      .proc-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* MODALS */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .modal-content {
+      background: #fff;
+      width: 90%;
+      max-width: 500px;
+      border-radius: 20px;
+      padding: 30px;
+      position: relative;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+
+    .instruction-box {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: left;
+    }
+
+    .instruction-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .instruction-row b {
+      color: #e74c3c;
+    }
+
+    /* REPORT CONTAINER (HIDDEN) */
+    #reportContainer {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
+      width: 800px;
+      background: #fff;
+      padding: 40px;
+      box-sizing: border-box;
+      font-family: 'Pretendard', sans-serif;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <div>
+      <h1>아이린가구</h1>
+      <div class="subtitle">AI 목재 견적 시스템</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <button onclick="openLoadModal()"
+        style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:20px;font-size:11px;cursor:pointer;">불러오기</button>
+      <button onclick="generateReport()"
+        style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:20px;font-size:11px;cursor:pointer;">견적서</button>
+      <button onclick="toggleOrderPanel()"
+        style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;">
+        주문목록 <span id="orderBadge"
+          style="background:#e74c3c;border-radius:50%;padding:1px 6px;font-size:11px;margin-left:4px;display:none;">0</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="chat-panel">
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-area">
+        <input type="text" id="chatInput" placeholder="예: MDF 400x1000 2장 사선가공 A,B"
+          onkeydown="if(event.key==='Enter')sendMessage()">
+        <button onclick="sendMessage()">전송</button>
+      </div>
+    </div>
+    <div class="preview-panel">
+      <div class="preview-header"><span>3D 미리보기</span><span id="previewDim"
+          style="font-size:11px;color:#82b1ff;">-</span></div>
+      <div class="preview-canvas-wrap"><canvas id="previewCanvas"></canvas></div>
+      <div class="preview-info" id="previewInfo">목재를 선택하면 3D 미리보기가 표시됩니다.</div>
+      <div class="order-panel" id="orderPanel" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="status-bar"><span id="statusLeft">대기 중</span><span id="statusRight"></span></div>
+  <div id="reportContainer"
+    style="position:absolute;left:-9999px;top:0;width:800px;background:#fff;padding:30px;font-family:'Noto Sans KR',sans-serif;">
+  </div>
+
+  <script>
+    // ============================================================
+    // CONFIG & URLs (원본 그대로)
+    // ============================================================
+    const PRICE_API_URL = 'https://script.google.com/macros/s/AKfycbzkTCXtkfn0zmQkXB3xFZEaczyHquAuGGZu_3KMiMHVz6SEGXvMbZV56EE8u7o-zEoLMw/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzXHDF31Hi_yZaDR_BG_GfDdcY7a8h_9wShpptcvfCOP-EEUgLQTalICjOtXGfZkpiFpw/exec';
+    const SESSION_ID = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+
+    // ============================================================
+    // WOOD DATA (원본 이미지/텍스처 URL 사용)
+    // ============================================================
+    const WOOD_DATA = {
+      mdf18T: { name: 'MDF 18T', image: 'https://gi.esmplus.com/irn2011/click/texture/mdf.png', thickness: 18, desc: '가성비 좋은 기본 합판', canSand: false, canCoat: false },
+      pvc18T: { name: 'PVC보드 18T+PET (완전방수)', image: 'https://gi.esmplus.com/irn2011/click/texture/pvc.png', thickness: 18, desc: '완전방수 · 욕실/주방 추천', canSand: false, canCoat: false },
+      misong18T: { name: '미송집성목 18T', image: 'https://gi.esmplus.com/irn2011/click/texture/misong.png', thickness: 18, desc: '부드러운 원목 느낌', canSand: true, canCoat: true },
+      pyeonbaek18T: { name: '편백집성목 18T', image: 'https://gi.esmplus.com/irn2011/click/texture/pyenon.png', thickness: 18, desc: '피톤치드 · 프리미엄 원목', canSand: true, canCoat: true },
+      mulbau18T: { name: '멀바우 집성목 18T', image: 'https://gi.esmplus.com/irn2011/click/texture/mulbau.png', thickness: 18, desc: '고급 하드우드 · 강한 내구성', canSand: true, canCoat: true }
+    };
+
+    const WOOD_YOUTUBE = {
+      mdf18T: 'https://youtu.be/gb2ETOmWzAI',
+      pvc18T: 'https://youtu.be/iKc5odpOETg',
+      misong18T: 'https://youtu.be/vk0Pa0uXu1w',
+      pyeonbaek18T: 'https://youtu.be/xdmOsSKHXQU',
+      mulbau18T: 'https://youtu.be/zxTFCZ9oIdk'
+    };
+
+    const WOOD_KEYS = ['mdf18T', 'pvc18T', 'misong18T', 'pyeonbaek18T', 'mulbau18T'];
+
+    // 가공 옵션 (원본 이미지 사용, 복수 선택)
+    const PROC_OPTIONS = [
+      { key: 'none', label: '가공없음', image: 'https://gi.esmplus.com/irn2011/click/texture/null.png', group: 'none' },
+      { key: 'sanding', label: '샌딩', image: 'https://gi.esmplus.com/irn2011/click/texture/sanding.png', group: 'base', event: '한 장 무료 샌딩!' },
+      { key: 'coating', label: '투명코팅', image: 'https://gi.esmplus.com/irn2011/click/texture/coating.png', group: 'base' },
+      { key: 'angled', label: '사선가공', image: 'https://gi.esmplus.com/irn2011/click/texture/45dgree.png', group: 'extra', event: '한 면 무료!', needSides: true },
+      { key: 'round', label: '모서리 라운드', image: 'https://gi.esmplus.com/irn2011/click/texture/round.png', group: 'extra', event: '한 꼭지점 무료!', needCorners: true },
+      { key: 'circlecut', label: '원형타공', image: 'https://gi.esmplus.com/irn2011/click/texture/circle.png', group: 'extra', event: '한 개 무료!' },
+      { key: 'squarecut', label: '사각타공', image: 'https://gi.esmplus.com/irn2011/click/texture/sagak.png', group: 'extra', event: '한 개 무료!' },
+      { key: 'hinge', label: '싱크경첩', image: 'https://gi.esmplus.com/irn2011/click/texture/hinge.png', group: 'extra', event: '2개 무료 시공!' }
+    ];
+
+    // ============================================================
+    // STATE
+    // ============================================================
+    let currentWood = null, currentWidth = 0, currentLength = 0, currentQty = 1;
+    let selectedProcs = new Set(); // 복수 선택 키 집합
+    let procDetails = {}; // {angled:{sides:['A','B']}, round:{corners:['1','3']}, ...}
+    let orderList = [], priceTable = [], openWoodDetail = null;
+    let scene, camera, renderer, controls, boardGroup, woodMesh, sceneObjects = [];
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      init3D();
+      loadPriceTable();
+      showWoodCards();
+    });
+
+    // ============================================================
+    // PRICE TABLE (원본 그대로)
+    // ============================================================
+    async function loadPriceTable() {
+      try {
+        const r = await fetch(PRICE_API_URL);
+        priceTable = await r.json();
+        updateStatus('단가표 로드 완료', '');
+      } catch (e) {
+        console.warn('단가표 로드 실패:', e);
+        updateStatus('단가표 로드 실패', '');
+      }
+    }
+
+    // 원본 getUnitPrice 그대로
+    function getUnitPrice(woodTypeId, area) {
+      if (!priceTable.length || area <= 0) return 0;
+      for (const tier of priceTable) {
+        if (area <= tier.area) return tier[woodTypeId] || 0;
+      }
+      return 0;
+    }
+
+    // 원본 코팅 가격 그대로
+    function getCoatingPrices() {
+      const length = currentLength || 0;
+      let s = 0;
+      if (length <= 600) s = 5000;
+      else if (length <= 1200) s = 10000;
+      else s = 15000;
+      return { single: s, double: s * 2 };
+    }
+
+    // 원본 배송비 그대로
+    function getBaseShippingCost(length) {
+      if (length <= 600) return 5000;
+      if (length <= 1200) return 8000;
+      return 10000;
+    }
+    function calculateShippingCost(orders) {
+      if (!orders || !orders.length) return [];
+      const hasWood = orders.some(o => o.woodTypeValue);
+      if (!hasWood) return [{ cost: 4000, sizeCategory: '부자재 기본 배송비', count: 1 }];
+      const pieces = [];
+      orders.forEach(o => {
+        if (o.woodTypeValue) {
+          for (let i = 0; i < parseInt(o.quantity); i++) {
+            const w = parseFloat(o.width), l = parseFloat(o.length);
+            pieces.push({ width: Math.min(w, l), length: Math.max(w, l) });
+          }
+        }
+      });
+      if (!pieces.length) return [];
+      pieces.sort((a, b) => (b.width * b.length) - (a.width * a.length));
+      const packs = [];
+      pieces.forEach(p => {
+        let packed = false;
+        for (const pk of packs) {
+          if (pk.pieces.length < 5 && p.width <= pk.base.width && p.length <= pk.base.length) { pk.pieces.push(p); packed = true; break; }
+        }
+        if (!packed) packs.push({ base: p, pieces: [p] });
+      });
+      const grouped = {};
+      packs.forEach(pk => {
+        const cost = getBaseShippingCost(pk.base.length);
+        if (!grouped[cost]) grouped[cost] = { cost, sizeCategory: pk.base.length <= 600 ? '600mm 이하' : pk.base.length <= 1200 ? '601~1200mm' : '1201~1800mm', count: 0 };
+        grouped[cost].count++;
+      });
+      return Object.values(grouped);
+    }
+
+    // ============================================================
+    // 견적 계산 (원본 calculate() 로직 반영)
+    // ============================================================
+    function calculatePrice() {
+      if (!currentWood || currentWidth <= 0 || currentLength <= 0) return null;
+      const area = currentWidth * currentLength;
+      const basePrice = getUnitPrice(currentWood, area);
+      if (basePrice === 0 && area > 0) return null;
+
+      let additionalCost = 0;
+      let eventDiscount = 0;
+      let discountDetails = [];
+
+      selectedProcs.forEach(key => {
+        const d = procDetails[key] || {};
+        switch (key) {
+          case 'sanding':
+            additionalCost += 5000;
+            eventDiscount += 5000;
+            discountDetails.push('샌딩 무료');
+            break;
+          case 'coating':
+            const cp = getCoatingPrices();
+            additionalCost += (d.type === '양면' ? cp.double : cp.single);
+            break;
+          case 'angled':
+            const aSides = (d.sides || []).length;
+            additionalCost += aSides * 1000;
+            if (aSides > 0) { eventDiscount += 1000; discountDetails.push('사선 1면 무료'); }
+            break;
+          case 'round':
+            const rCorners = (d.corners || []).length;
+            additionalCost += rCorners * 1000;
+            if (rCorners > 0) { eventDiscount += 1000; discountDetails.push('라운드 1개 무료'); }
+            break;
+          case 'circlecut':
+            const cCount = d.count || 1;
+            additionalCost += cCount * 3000;
+            if (cCount > 0) { eventDiscount += 3000; discountDetails.push('원형타공 1개 무료'); }
+            break;
+          case 'squarecut':
+            const sCount = d.count || 1;
+            additionalCost += sCount * 4000;
+            if (sCount > 0) { eventDiscount += 4000; discountDetails.push('사각타공 1개 무료'); }
+            break;
+          case 'hinge':
+            const hCount = d.count || 2;
+            additionalCost += hCount * 1000;
+            const hDisc = Math.min(hCount, 2);
+            if (hDisc > 0) { eventDiscount += hDisc * 1000; discountDetails.push(`경첩 ${hDisc}개 무료`); }
+            break;
+        }
+      });
+
+      const origPerPiece = basePrice + additionalCost;
+      const origTotal = origPerPiece * currentQty;
+      const totalDiscount = eventDiscount * currentQty;
+      const finalTotal = origTotal - totalDiscount;
+      const shipping = calculateShippingFromCurrent(finalTotal);
+
+      return {
+        basePrice, additionalCost, origPerPiece, origTotal,
+        eventDiscount, totalDiscount, discountDetails,
+        finalTotal, shipping,
+        grandTotal: finalTotal + shipping
+      };
+    }
+
+    function calculateShippingFromCurrent(totalPrice) {
+      // 간소화: 현재 견적 1건 기준 배송비
+      if (currentLength <= 600) return 5000;
+      if (currentLength <= 1200) return 8000;
+      return 10000;
+    }
+
+    // ============================================================
+    // CHAT HELPERS
+    // ============================================================
+    function addBotMessage(html) { const d = document.createElement('div'); d.className = 'msg bot-msg'; d.innerHTML = html; document.getElementById('chatMessages').appendChild(d); scrollChat(); }
+    function addUserMessage(text) { const d = document.createElement('div'); d.className = 'msg user-msg'; d.textContent = text; document.getElementById('chatMessages').appendChild(d); scrollChat(); }
+    function scrollChat() { const c = document.getElementById('chatMessages'); setTimeout(() => { c.scrollTop = c.scrollHeight; }, 50); }
+    function showTyping() { const d = document.createElement('div'); d.className = 'typing-indicator'; d.id = 'typingIndicator'; d.innerHTML = '<span></span><span></span><span></span>'; document.getElementById('chatMessages').appendChild(d); scrollChat(); }
+    function hideTyping() { const e = document.getElementById('typingIndicator'); if (e) e.remove(); }
+    function updateStatus(l, r) { document.getElementById('statusLeft').textContent = l || ''; document.getElementById('statusRight').textContent = r || ''; }
+
+    async function postToServer(data) {
+      const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify(data) });
+      return await r.json();
+    }
+
+    // ============================================================
+    // SEND & PROCESS
+    // ============================================================
+    function sendMessage() {
+      const inp = document.getElementById('chatInput'); const t = inp.value.trim(); if (!t) return;
+      inp.value = ''; addUserMessage(t);
+      // 사용자가 직접 입력한 것은 즉시 AI에게 보냄
+      sendToAI(t);
+    }
+
+    async function processInput(text) {
+      const lo = text.toLowerCase().replace(/\s+/g, '');
+
+      // 1) 목재 선택 (추천/물어보는 의도가 아닐 때만 지름길로 처리)
+      const isConsulting = lo.includes('추천') || lo.includes('어때') || lo.includes('어떤') || lo.includes('상담') || lo.includes('좋아');
+      const aliases = { mdf18T: ['mdf'], pvc18T: ['pvc', '피브이씨'], misong18T: ['미송'], pyeonbaek18T: ['편백'], mulbau18T: ['멀바우'] };
+      if (!isConsulting) {
+        for (const key of WOOD_KEYS) {
+          if (aliases[key].some(a => lo.includes(a))) {
+            selectWood(key);
+            const sm = text.match(/(\d{2,4})\s*[xX×\*]\s*(\d{2,4})/);
+            if (sm) {
+              const w = parseInt(sm[1]), l = parseInt(sm[2]);
+              const qm = text.match(/(\d+)\s*장/);
+              setSize(w, l, qm ? parseInt(qm[1]) : 1);
+              parseProcessingsFromText(text);
+              if (selectedProcs.size) showEstimate();
+            }
+            return;
+          }
+        }
+      }
+
+      // 2) 사이즈
+      const sm = text.match(/(\d{2,4})\s*[xX×\*]\s*(\d{2,4})/);
+      if (sm && currentWood) {
+        const w = parseInt(sm[1]), l = parseInt(sm[2]), qm = text.match(/(\d+)\s*장/);
+        setSize(w, l, qm ? parseInt(qm[1]) : 1);
+        parseProcessingsFromText(text);
+        if (selectedProcs.size) showEstimate();
+        return;
+      }
+
+      // 3) 수량
+      const qo = text.match(/^(\d+)\s*장$/);
+      if (qo && currentWood && currentWidth > 0) { currentQty = parseInt(qo[1]); addBotMessage('수량: <b>' + currentQty + '장</b>'); showEstimate(); return; }
+
+      // 4) 키워드 (완전 일치 또는 명확한 명령어만 처리)
+      if (lo === '주문' || (lo.includes('주문') && orderList.length > 0)) { showCustomerForm(); return; }
+      if (lo === '초기화' || lo === '리셋') { resetAll(); addBotMessage('초기화되었습니다.'); showWoodCards(); return; }
+      if (lo === '목재' || lo === '종류' || lo === '목재종류') { showWoodCards(); return; }
+
+      // 지역 처리 실패 시 아무것도 하지 않음 (버튼 클릭 전용이므로)
+    }
+
+    function parseProcessingsFromText(text) {
+      const lo = text.toLowerCase();
+      if (lo.includes('사선') || lo.includes('꺽기')) {
+        selectedProcs.add('angled');
+        const sides = [];
+        if (/[aA가]/.test(text)) sides.push('A'); if (/[bB나]/.test(text)) sides.push('B');
+        if (/[cC다]/.test(text)) sides.push('C'); if (/[dD라]/.test(text)) sides.push('D');
+        procDetails.angled = { sides: sides.length ? sides : ['A'] };
+      }
+      if (lo.includes('라운드') || lo.includes('둥글')) {
+        selectedProcs.add('round'); procDetails.round = { corners: ['1'] };
+      }
+      if (lo.includes('원형') || lo.includes('원컷')) { selectedProcs.add('circlecut'); procDetails.circlecut = { count: 1 }; }
+      if (lo.includes('사각컷') || lo.includes('사각홀')) { selectedProcs.add('squarecut'); procDetails.squarecut = { count: 1 }; }
+      if (lo.includes('경첩')) { const hm = text.match(/(\d+)\s*개/); selectedProcs.add('hinge'); procDetails.hinge = { count: hm ? parseInt(hm[1]) : 2 }; }
+      if (lo.includes('코팅') && lo.includes('양')) { selectedProcs.add('coating'); procDetails.coating = { type: '양면' }; }
+      else if (lo.includes('코팅')) { selectedProcs.add('coating'); procDetails.coating = { type: '단면' }; }
+      if (lo.includes('사포') || lo.includes('샌딩')) { selectedProcs.add('sanding'); procDetails.sanding = {}; }
+
+      if (selectedProcs.size) {
+        addBotMessage('가공: <b>' + getProcSummary() + '</b>');
+        updateWoodModel();
+      }
+    }
+
+    function getProcSummary() {
+      if (!selectedProcs.size) return '가공없음';
+      return Array.from(selectedProcs).map(key => {
+        const opt = PROC_OPTIONS.find(o => o.key === key);
+        let label = opt ? opt.label : key;
+        const d = procDetails[key] || {};
+        if (key === 'angled' && d.sides) label += '(' + d.sides.join(',') + ')';
+        if (key === 'round' && d.corners) label += '(' + d.corners.join(',') + ')';
+        if (key === 'hinge' && d.count) label += '(' + d.count + '개)';
+        if (key === 'coating' && d.type) label += '(' + d.type + ')';
+        if (key === 'circlecut' && d.count > 1) label += '(' + d.count + '개)';
+        if (key === 'squarecut' && d.count > 1) label += '(' + d.count + '개)';
+        return label;
+      }).join(' + ');
+    }
+
+    // ============================================================
+    // AI
+    // ============================================================
+    async function sendToAI(text) {
+      showTyping(); updateStatus('AI 응답 대기 중...', '');
+      try {
+        const resp = await postToServer({ type: 'chat', cid: SESSION_ID, message: text });
+        hideTyping();
+        if (resp.result === 'error') { addBotMessage('죄송합니다. 오류가 발생했습니다.'); updateStatus('오류', ''); return; }
+
+        // 데이터 구조 보정 (resp 자체에 reply/action이 있거나 resp.data에 있는 경우 모두 대응)
+        const d = (resp.reply || resp.action) ? resp : (resp.data || resp);
+        addBotMessage(d.reply || d.message || d.text || '응답을 처리할 수 없습니다.');
+
+        // show_processing: 목재+사이즈+수량이 모두 확정 → 추가가공 옵션 버튼 표시
+        if (d.action === 'show_processing' && d.data) {
+          if (d.data.woodType) currentWood = d.data.woodType;
+          if (d.data.width) currentWidth = Number(d.data.width);
+          if (d.data.length) currentLength = Number(d.data.length);
+          if (d.data.qty) currentQty = Number(d.data.qty);
+          selectedProcs.clear(); procDetails = {};
+          updateWoodModel();
+          showProcessingOptions();
+          const wd = WOOD_DATA[currentWood];
+          updateStatus(wd ? wd.name + ' 선택됨' : '목재 선택됨', '가공 옵션 선택 대기');
+        }
+
+        // estimate: 이전 호환용 (혹시 estimate가 오면 견적 표시)
+        if (d.action === 'estimate' && d.data) {
+          if (d.data.woodType) currentWood = d.data.woodType;
+          if (d.data.width) currentWidth = Number(d.data.width);
+          if (d.data.length) currentLength = Number(d.data.length);
+          if (d.data.qty) currentQty = Number(d.data.qty);
+          updateWoodModel(); showEstimate();
+        }
+
+        if (d.action === 'show_woods') showWoodCards();
+        if (!['show_processing', 'estimate', 'show_woods'].includes(d.action)) updateStatus('대기 중', '');
+      } catch (e) { hideTyping(); addBotMessage('네트워크 오류입니다.'); updateStatus('연결 오류', ''); console.error(e); }
+    }
+
+    // ============================================================
+    // WOOD SELECTION (원본 이미지 사용)
+    // ============================================================
+    function showWoodCards() {
+      let h = '<div class="wood-btn-list">';
+      WOOD_KEYS.forEach(key => {
+        const wd = WOOD_DATA[key];
+        h += `<div>
+      <div class="wood-select-btn" onclick="toggleWoodDetail('${key}',this)" id="woodBtn_${key}">
+        <img class="wood-thumb" src="${wd.image}" alt="${wd.name}" onerror="this.style.display='none'">
+        <div class="wood-label">
+          <div class="wname">${wd.name}</div>
+          <div class="wdesc">${wd.desc}</div>
+        </div>
+        <span class="arrow-icon">▸</span>
+      </div>
+      <div id="woodDetail_${key}"></div>
+    </div>`;
+      });
+      h += '</div>';
+      addBotMessage(h);
+    }
+
+    function toggleWoodDetail(key, btnEl) {
+      const container = document.getElementById('woodDetail_' + key);
+      if (!container) return;
+      if (openWoodDetail === key) { container.innerHTML = ''; openWoodDetail = null; if (btnEl) btnEl.classList.remove('active'); return; }
+      if (openWoodDetail) {
+        const prev = document.getElementById('woodDetail_' + openWoodDetail); if (prev) prev.innerHTML = '';
+        const pb = document.getElementById('woodBtn_' + openWoodDetail); if (pb) pb.classList.remove('active');
+      }
+      const wd = WOOD_DATA[key], yt = WOOD_YOUTUBE[key] || '';
+      container.innerHTML = `
+    <div class="wood-detail-card">
+      <img src="${wd.image}" alt="${wd.name}" onerror="this.style.display='none'">
+      <div class="wood-detail-actions">
+        <button class="btn-select-wood" onclick="selectWoodFromCard('${key}')">✓ ${wd.name} 선택</button>
+        ${yt ? `<button class="btn-youtube" onclick="window.open('${yt}','_blank')">
+          <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          영상</button>`: ''}
+      </div>
+    </div>`;
+      openWoodDetail = key; if (btnEl) btnEl.classList.add('active');
+      setTimeout(() => { container.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+    }
+
+    function selectWoodFromCard(key) {
+      const c = document.getElementById('woodDetail_' + key); if (c) c.innerHTML = ''; openWoodDetail = null;
+      selectWood(key);
+    }
+
+    function selectWood(key) {
+      currentWood = key; currentWidth = 0; currentLength = 0; currentQty = 1;
+      selectedProcs.clear(); procDetails = {};
+      const wd = WOOD_DATA[key];
+      addBotMessage(`<b>${wd.name}</b> 선택!<br>사이즈를 입력해주세요. (가로×세로 mm)
+    <div class="quick-buttons">
+      <span class="quick-btn" onclick="processInput('300x400')">300×400</span>
+      <span class="quick-btn" onclick="processInput('400x600')">400×600</span>
+      <span class="quick-btn" onclick="processInput('400x800')">400×800</span>
+      <span class="quick-btn" onclick="processInput('500x1000')">500×1000</span>
+      <span class="quick-btn" onclick="processInput('600x1200')">600×1200</span>
+    </div>`);
+      updateWoodModel();
+      updateStatus(wd.name + ' 선택됨', '사이즈 입력 대기');
+    }
+
+    // ============================================================
+    // SIZE
+    // ============================================================
+    function setSize(w, l, qty) {
+      if (w > 600) { addBotMessage('폭은 최대 <b>600mm</b>까지 가능합니다.'); return; }
+      if (l > 1800) { addBotMessage('길이는 최대 <b>1800mm</b>까지 가능합니다.'); return; }
+      if (w < 10 || l < 10) { addBotMessage('최소 사이즈는 <b>10mm</b>입니다.'); return; }
+      currentWidth = w; currentLength = l; currentQty = qty || 1;
+      addBotMessage(`사이즈: <b>${w} × ${l}mm</b>, 수량: <b>${currentQty}장</b><br>가공 옵션을 선택하세요. (복수 선택 가능)`);
+      showProcessingOptions();
+      updateWoodModel();
+    }
+
+    // ============================================================
+    // PROCESSING OPTIONS (복수 선택, 원본 이미지)
+    // ============================================================
+    function showProcessingOptions() {
+      const wd = WOOD_DATA[currentWood] || {};
+      let h = '<div class="proc-grid">';
+      PROC_OPTIONS.forEach(p => {
+        const isActive = selectedProcs.has(p.key) || (p.key === 'none' && !selectedProcs.size);
+        let disabled = false;
+        if (p.key === 'sanding' && !wd.canSand) disabled = true;
+        if (p.key === 'coating' && !wd.canCoat) disabled = true;
+        if (p.key === 'sanding' && selectedProcs.has('coating')) disabled = true;
+
+        h += `<div class="proc-item${isActive ? ' selected' : ''}${disabled ? ' disabled' : ''}" onclick="toggleProc('${p.key}')" id="procItem_${p.key}">
+      <img src="${p.image}" alt="${p.label}">
+      <div>${p.label}</div>
+      ${p.event ? '<div class="event-tag">' + p.event + '</div>' : ''}
+    </div>`;
+      });
+      h += '</div>';
+      h += '<div id="procSubArea"></div>';
+      h += '<div style="margin-top:8px;"><span class="quick-btn" onclick="confirmProc()" style="background:#2ecc71;color:#fff;border-color:#2ecc71;">✓ 가공 확정 → 견적 보기</span></div>';
+      addBotMessage(h);
+    }
+
+    function toggleProc(key) {
+      const wd = WOOD_DATA[currentWood] || {};
+
+      if (key === 'none') {
+        selectedProcs.clear(); procDetails = {};
+      } else {
+        selectedProcs.delete('none');// none 해제
+
+        // coating 선택 시 sanding 자동 해제
+        if (key === 'coating' && !selectedProcs.has('coating')) {
+          if (selectedProcs.has('sanding')) { selectedProcs.delete('sanding'); delete procDetails.sanding; }
+        }
+        // 제약 체크
+        if (key === 'sanding' && (!wd.canSand || selectedProcs.has('coating'))) return;
+        if (key === 'coating' && !wd.canCoat) return;
+
+        if (selectedProcs.has(key)) {
+          selectedProcs.delete(key); delete procDetails[key];
+        } else {
+          selectedProcs.add(key);
+          // 기본값
+          if (key === 'angled') procDetails.angled = { sides: [] };
+          if (key === 'round') procDetails.round = { corners: [] };
+          if (key === 'coating') procDetails.coating = { type: '단면' };
+          if (key === 'circlecut') procDetails.circlecut = { count: 1 };
+          if (key === 'squarecut') procDetails.squarecut = { count: 1 };
+          if (key === 'hinge') procDetails.hinge = { count: 2 };
+          if (key === 'sanding') procDetails.sanding = {};
+        }
+        if (!selectedProcs.size) { selectedProcs.clear(); }// 아무것도 없으면 none 상태
+      }
+
+      // UI 업데이트
+      PROC_OPTIONS.forEach(p => {
+        const el = document.getElementById('procItem_' + p.key);
+        if (!el) return;
+        const isActive = selectedProcs.has(p.key) || (p.key === 'none' && !selectedProcs.size);
+        el.classList.toggle('selected', isActive);
+        // disable 로직
+        let dis = false;
+        if (p.key === 'sanding' && (!wd.canSand || selectedProcs.has('coating'))) dis = true;
+        if (p.key === 'coating' && !wd.canCoat) dis = true;
+        el.classList.toggle('disabled', dis);
+      });
+
+      renderProcSub();
+      updateWoodModel();
+    }
+
+    function renderProcSub() {
+      const area = document.getElementById('procSubArea');
+      if (!area) return;
+      let h = '';
+
+      if (selectedProcs.has('coating')) {
+        const d = procDetails.coating || { type: '단면' };
+        const cp = getCoatingPrices();
+        h += `<div class="proc-sub"><div class="sub-title">코팅 방식</div>
+      <select onchange="procDetails.coating.type=this.value;updateWoodModel();">
+        <option value="단면" ${d.type === '단면' ? 'selected' : ''}>단면 코팅 (+${cp.single.toLocaleString()}원)</option>
+        <option value="양면" ${d.type === '양면' ? 'selected' : ''}>양면 코팅 (+${cp.double.toLocaleString()}원)</option>
+      </select></div>`;
+      }
+
+      if (selectedProcs.has('angled')) {
+        const d = procDetails.angled || { sides: [] };
+        h += `<div class="proc-sub"><div class="sub-title">사선가공 면 선택 (복수 가능, 추가면 +1,000원)</div>
+      <div class="side-grid">
+        ${['A(좌측)', 'B(상단)', 'C(우측)', 'D(하단)'].map((label, i) => {
+          const val = ['A', 'B', 'C', 'D'][i];
+          return `<div class="side-item${d.sides.includes(val) ? ' active' : ''}" onclick="toggleAngledSide('${val}')">${label}</div>`;
+        }).join('')}
+      </div></div>`;
+      }
+
+      if (selectedProcs.has('round')) {
+        const d = procDetails.round || { corners: [] };
+        h += `<div class="proc-sub"><div class="sub-title">라운드 모서리 선택 (복수 가능, 추가모서리 +1,000원)</div>
+      <div class="side-grid">
+        ${['1(좌상)', '2(좌하)', '3(우상)', '4(우하)'].map((label, i) => {
+          const val = String(i + 1);
+          return `<div class="side-item${d.corners.includes(val) ? ' active' : ''}" onclick="toggleRoundCorner('${val}')">${label}</div>`;
+        }).join('')}
+      </div></div>`;
+      }
+
+      if (selectedProcs.has('hinge')) {
+        const d = procDetails.hinge || { count: 2 };
+        h += `<div class="proc-sub"><div class="sub-title">경첩 개수 (2개까지 무료, 추가 +1,000원/개)</div>
+      <input type="number" value="${d.count}" min="1" max="10" onchange="procDetails.hinge.count=parseInt(this.value)||2;updateWoodModel();"></div>`;
+      }
+
+      if (selectedProcs.has('circlecut')) {
+        const d = procDetails.circlecut || { count: 1 };
+        h += `<div class="proc-sub"><div class="sub-title">원형타공 개수 (1개 무료, 추가 +3,000원/개)</div>
+      <input type="number" value="${d.count}" min="1" max="10" onchange="procDetails.circlecut.count=parseInt(this.value)||1;updateWoodModel();"></div>`;
+      }
+
+      if (selectedProcs.has('squarecut')) {
+        const d = procDetails.squarecut || { count: 1 };
+        h += `<div class="proc-sub"><div class="sub-title">사각타공 개수 (1개 무료, 추가 +4,000원/개)</div>
+      <input type="number" value="${d.count}" min="1" max="10" onchange="procDetails.squarecut.count=parseInt(this.value)||1;updateWoodModel();"></div>`;
+      }
+
+      area.innerHTML = h;
+    }
+
+    function toggleAngledSide(val) {
+      const d = procDetails.angled || (procDetails.angled = { sides: [] });
+      const i = d.sides.indexOf(val);
+      if (i >= 0) d.sides.splice(i, 1); else d.sides.push(val);
+      renderProcSub(); updateWoodModel();
+    }
+
+    function toggleRoundCorner(val) {
+      const d = procDetails.round || (procDetails.round = { corners: [] });
+      const i = d.corners.indexOf(val);
+      if (i >= 0) d.corners.splice(i, 1); else d.corners.push(val);
+      renderProcSub(); updateWoodModel();
+    }
+
+    function confirmProc() {
+      addBotMessage('가공 확정: <b>' + getProcSummary() + '</b>');
+      updateWoodModel();
+      showEstimate();
+    }
+
+    // ============================================================
+    // ESTIMATE
+    // ============================================================
+    function showEstimate() {
+      if (!currentWood || currentWidth <= 0) return;
+      const p = calculatePrice();
+      if (!p) { addBotMessage('해당 사이즈의 단가 정보가 없습니다.'); return; }
+      const wd = WOOD_DATA[currentWood];
+
+      let procDetailHtml = '';
+      if (p.additionalCost > 0) {
+        procDetailHtml += `<div class="estimate-row"><span>가공비 상세</span><span>+${p.additionalCost.toLocaleString()}원</span></div>`;
+      }
+      if (p.totalDiscount > 0) {
+        procDetailHtml += `<div class="estimate-row" style="color:#ffd700;"><span>이벤트 할인</span><span>-${p.totalDiscount.toLocaleString()}원</span></div>`;
+        p.discountDetails.forEach(dd => {
+          procDetailHtml += `<div class="estimate-row" style="font-size:11px;color:#ffd700;"><span style="padding-left:10px;">└ ${dd}</span><span></span></div>`;
+        });
+      }
+
+      // 임시 배송비 (리뷰용)
+      const tempShipping = getBaseShippingCost(currentLength);
+
+      addBotMessage(`
+    <div class="estimate-card">
+      <h3>📋 견적서</h3>
+      <div class="estimate-row"><span>목재</span><span>${wd.name}</span></div>
+      <div class="estimate-row"><span>사이즈</span><span>${currentWidth} × ${currentLength} mm</span></div>
+      <div class="estimate-row"><span>수량</span><span>${currentQty}장</span></div>
+      <div class="estimate-row"><span>가공</span><span>${getProcSummary()}</span></div>
+      <div class="estimate-row"><span>판재 단가</span><span>${p.basePrice.toLocaleString()}원</span></div>
+      ${procDetailHtml}
+      <div class="estimate-row" style="font-weight:600;"><span>장당 (할인 후)</span><span>${Math.round(p.finalTotal / currentQty).toLocaleString()}원</span></div>
+      <div class="estimate-row"><span>소계 (${currentQty}장)</span><span>${p.finalTotal.toLocaleString()}원</span></div>
+      <div class="estimate-row" style="opacity:0.7; font-size:11px;"><span>예상 배송비 (박스 하나당)</span><span>${tempShipping.toLocaleString()}원</span></div>
+      <div class="estimate-total">소계 합계: ${p.finalTotal.toLocaleString()}원</div>
+      <div class="estimate-actions">
+        <button class="btn-add-order" onclick="addToOrder()">주문목록에 추가</button>
+        <button class="btn-new-est" onclick="resetEstimate();showWoodCards();">새 견적</button>
+      </div>
+    </div>`);
+
+      document.getElementById('previewDim').textContent = `${currentWidth}×${currentLength}mm ${wd.name}`;
+      updateStatus('견적 완료', p.finalTotal.toLocaleString() + '원');
+    }
+
+    // ============================================================
+    // ORDER
+    // ============================================================
+    function addToOrder() {
+      const p = calculatePrice(); if (!p) return;
+      const wd = WOOD_DATA[currentWood];
+      orderList.push({
+        woodTypeValue: currentWood,
+        woodName: wd.name,
+        width: currentWidth,
+        length: currentLength,
+        quantity: currentQty,
+        processingSummary: getProcSummary(),
+        selectedProcs: Array.from(selectedProcs),
+        procDetails: JSON.parse(JSON.stringify(procDetails)),
+        basePrice: p.basePrice,
+        additionalCost: p.additionalCost,
+        originalTotal: p.origTotal,
+        discount: p.totalDiscount,
+        discountDetails: p.discountDetails,
+        estimate: p.finalTotal
+      });
+
+      addBotMessage(`<b>${wd.name} ${currentWidth}×${currentLength}mm ${currentQty}장</b> 추가!
+    <div class="quick-buttons">
+      <span class="quick-btn" onclick="resetEstimate();showWoodCards();">다른 목재 추가</span>
+      <span class="quick-btn" onclick="showCustomerStoreLinks()">부자재/쇼핑몰 보기</span>
+      <span class="quick-btn" onclick="showCustomerForm()">주문하기 (${orderList.length}건)</span>
+    </div>`);
+      updateOrderBadge(); renderOrderPanel(); resetEstimate();
+    }
+
+    function removeOrderItem(idx) { orderList.splice(idx, 1); updateOrderBadge(); renderOrderPanel(); }
+    function toggleOrderPanel() { const p = document.getElementById('orderPanel'); if (p.style.display === 'none') { p.style.display = 'flex'; renderOrderPanel(); } else p.style.display = 'none'; }
+
+    function renderOrderPanel() {
+      const panel = document.getElementById('orderPanel');
+      if (!orderList.length) {
+        panel.innerHTML = `<div class="order-panel-header"><span>주문목록</span><button onclick="toggleOrderPanel()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">✕</button></div>
+      <div class="order-panel-body" style="display:flex;align-items:center;justify-content:center;color:#999;">비어있습니다.</div>`; return;
+      }
+
+      let itemTotal = 0;
+      let ih = '';
+      orderList.forEach((item, idx) => {
+        itemTotal += item.estimate;
+        let discHtml = item.discount > 0 ? `<div style="color:#ffcc00;font-size:11px;">할인: -${item.discount.toLocaleString()}원</div>` : '';
+        ih += `<div class="order-item">
+      <button class="oi-remove" onclick="removeOrderItem(${idx})">✕</button>
+      <div class="oi-title">${item.woodName}</div>
+      <div class="oi-detail">${item.width}×${item.length}mm / ${item.quantity}장 / ${item.processingSummary}</div>
+      ${discHtml}
+      <div class="oi-price">${item.estimate.toLocaleString()}원</div>
+    </div>`;
+      });
+
+      // 배송비 계산
+      const shippingItems = calculateShippingCost(orderList);
+      let totalShip = 0;
+      let shipHtml = '';
+      shippingItems.forEach(si => {
+        const sc = si.cost * si.count;
+        totalShip += sc;
+        shipHtml += `<div class="order-item" style="border-left-color:#f1c40f; background:#fffdf0;">
+      <div class="oi-title">예상 배송비</div>
+      <div class="oi-detail">${si.sizeCategory} (${si.count}개)</div>
+      <div class="oi-price">${sc.toLocaleString()}원</div>
+    </div>`;
+      });
+
+      const grandTotal = itemTotal + totalShip;
+
+      panel.innerHTML = `
+    <div class="order-panel-header"><span>주문목록 (${orderList.length}건)</span><button onclick="toggleOrderPanel()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer;">✕</button></div>
+    <div class="order-panel-body">${ih}${shipHtml}</div>
+    <div class="order-panel-footer">
+      <div class="total-row"><span>총 합계</span><span>${grandTotal.toLocaleString()}원</span></div>
+      <button class="btn-checkout" onclick="toggleOrderPanel();showCustomerForm();">주문 진행하기</button>
+    </div>`;
+    }
+
+    // ============================================================
+    // CUSTOMER FORM
+    // ============================================================
+    function showCustomerForm() {
+      if (!orderList.length) { addBotMessage('주문목록이 비어있습니다.'); return; }
+      if (orderList.some(i => i.isLoaded)) { addBotMessage('불러온 주문은 전송이 불가합니다.<div class="quick-buttons"><span class="quick-btn" onclick="generateReport()">📸 견적서 저장</span></div>'); return; }
+      let gt = 0; orderList.forEach(i => { gt += i.estimate; });
+      const shipItems = calculateShippingCost(orderList); shipItems.forEach(si => { gt += si.cost * si.count; });
+      addBotMessage(`
+    <div class="customer-form">
+      <h4>주문자 정보</h4>
+      <div class="form-row"><label>성함 *</label><input type="text" id="custName" placeholder="홍길동"></div>
+      <div class="form-row"><label>연락처 *</label><input type="tel" id="custPhone" placeholder="010-1234-5678" oninput="formatPhoneNumber(this)" maxlength="13"></div>
+      <div class="form-row"><label>이메일</label><input type="email" id="custEmail" placeholder="example@email.com (선택)"></div>
+      <div class="form-row"><label>요청사항</label><textarea id="custMemo" rows="2" placeholder="특이사항"></textarea></div>
+      <div style="text-align:right;font-size:14px;font-weight:700;color:#e74c3c;margin:8px 0;">총 결제금액: ${gt.toLocaleString()}원</div>
+      <button class="btn-submit-order" onclick="submitOrder()">주문 제출하기</button>
+    </div>`);
+    }
+
+    async function submitOrder() {
+      const name = document.getElementById('custName').value.trim();
+      const phone = document.getElementById('custPhone').value.trim();
+      const email = document.getElementById('custEmail')?.value.trim() || '';
+      const memo = document.getElementById('custMemo').value.trim();
+      if (!name || !phone) { addBotMessage('성함과 연락처는 필수입니다.'); return; }
+      showTyping(); updateStatus('주문 제출 중...', '');
+      try {
+        const resp = await postToServer({ type: 'order', data: { customer: { name, phone, email, memo }, items: orderList, sessionId: SESSION_ID, timestamp: new Date().toISOString() } });
+        hideTyping();
+        if (resp.result === 'success' || resp.orderNumber || resp.orderNo) {
+          const on = resp.orderNo || resp.orderNumber || resp.data?.orderNumber || 'IRN-' + Date.now();
+          let itemTotal = 0;
+          orderList.forEach(i => { itemTotal += i.estimate; });
+          const shipItems = calculateShippingCost(orderList);
+          let shipTotal = 0;
+          shipItems.forEach(si => shipTotal += (si.cost * si.count));
+          const grandTotal = itemTotal + shipTotal;
+
+          updateSubmitOrderSuccess(on, grandTotal);
+
+          orderList = []; updateOrderBadge(); renderOrderPanel(); updateStatus('주문 완료', on);
+        } else { addBotMessage('주문 제출 중 문제가 발생했습니다.'); updateStatus('주문 실패', ''); }
+      } catch (e) { hideTyping(); addBotMessage('네트워크 오류입니다.'); updateStatus('연결 오류', ''); console.error(e); }
+    }
+
+    function resetEstimate() { currentWidth = 0; currentLength = 0; currentQty = 1; selectedProcs.clear(); procDetails = {}; }
+    function resetAll() { currentWood = null; resetEstimate(); }
+
+    // ============================================================
+    // THREE.JS 3D (원본 텍스처 + 로직)
+    // ============================================================
+    function init3D() {
+      const wrap = document.querySelector('.preview-canvas-wrap');
+      const canvas = document.getElementById('previewCanvas');
+      const w = wrap.clientWidth || 600, h = wrap.clientHeight || 400;
+      scene = new THREE.Scene(); scene.background = new THREE.Color(0xf0f0f0);
+      camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 1000);
+      camera.position.set(3, 3, 5);
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setSize(w, h); renderer.setPixelRatio(window.devicePixelRatio);
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true; controls.dampingFactor = 0.08;
+      scene.add(new THREE.AmbientLight(0xdddddd));
+      const dl = new THREE.DirectionalLight(0xffffff, 1); dl.position.set(5, 10, 7.5); scene.add(dl);
+      boardGroup = new THREE.Group(); scene.add(boardGroup);
+      sceneObjects = [];
+      animate3D();
+      new ResizeObserver(() => {
+        const ww = wrap.clientWidth, hh = wrap.clientHeight;
+        if (ww > 0 && hh > 0) { camera.aspect = ww / hh; camera.updateProjectionMatrix(); renderer.setSize(ww, hh); }
+      }).observe(wrap);
+    }
+
+    function animate3D() { requestAnimationFrame(animate3D); if (controls) controls.update(); if (renderer && scene && camera) renderer.render(scene, camera); }
+
+    function updateWoodModel() {
+      // Clear
+      if (woodMesh) { scene.remove(woodMesh); woodMesh = null; }
+      sceneObjects.forEach(o => scene.remove(o)); sceneObjects = [];
+
+      if (!currentWood || currentWidth <= 0 || currentLength <= 0) return;
+
+      const width = currentWidth, length = currentLength, height = 18;
+      const w = width / 100, h = height / 100, l = length / 100;
+
+      // 원본 텍스처
+      const texture = new THREE.TextureLoader().load('https://gi.esmplus.com/irn2011/click/texture/line_texture.jpg');
+      texture.repeat.set(width / 300, length / 1200);
+      texture.wrapS = THREE.RepeatWrapping; texture.wrapT = THREE.RepeatWrapping;
+      const woodMat = new THREE.MeshPhongMaterial({ map: texture });
+      const pinkMat = new THREE.MeshPhongMaterial({ color: 0xff69b4 });
+      const blueMat = new THREE.MeshPhongMaterial({ color: 0x007bff, transparent: true, opacity: 0.7 });
+      const purpleMat = new THREE.MeshBasicMaterial({ color: 0x800080, side: THREE.DoubleSide });
+
+      const materials = Array(6).fill(null).map(() => woodMat.clone());
+
+      // 코팅 표시
+      if (selectedProcs.has('coating')) {
+        const type = (procDetails.coating || {}).type;
+        if (type === '단면') materials[2] = pinkMat;
+        else if (type === '양면') { materials[2] = pinkMat; materials[3] = pinkMat; }
+      }
+      // 사선 표시
+      if (selectedProcs.has('angled')) {
+        const sides = (procDetails.angled || {}).sides || [];
+        sides.forEach(s => {
+          if (s === 'A') materials[1] = blueMat;
+          if (s === 'B') materials[4] = blueMat;
+          if (s === 'C') materials[0] = blueMat;
+          if (s === 'D') materials[5] = blueMat;
+        });
+      }
+
+      const geo = new THREE.BoxGeometry(w, h, l);
+      woodMesh = new THREE.Mesh(geo, materials);
+      scene.add(woodMesh);
+
+      // 엣지
+      const edges = new THREE.EdgesGeometry(geo);
+      woodMesh.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 })));
+
+      const topY = h / 2, hw = w / 2, hl = l / 2;
+
+      // 라운드 마커
+      if (selectedProcs.has('round')) {
+        const corners = (procDetails.round || {}).corners || [];
+        const posMap = { '1': [-hw, topY, hl], '2': [-hw, topY, -hl], '3': [hw, topY, hl], '4': [hw, topY, -hl] };
+        corners.forEach(c => {
+          if (posMap[c]) {
+            const sp = new THREE.Mesh(new THREE.SphereGeometry(0.05, 16, 16), purpleMat);
+            sp.position.fromArray(posMap[c]); scene.add(sp); sceneObjects.push(sp);
+          }
+        });
+      }
+
+      // 경첩 마커
+      if (selectedProcs.has('hinge')) {
+        const count = (procDetails.hinge || {}).count || 2;
+        for (let i = 0; i < count; i++) {
+          const t = (i + 1) / (count + 1);
+          const hole = new THREE.Mesh(new THREE.CircleGeometry(17.5 / 100, 32), purpleMat);
+          hole.position.set(23 / 100 - hw, topY + 0.001, hl - t * l);
+          hole.rotation.x = -Math.PI / 2;
+          scene.add(hole); sceneObjects.push(hole);
+        }
+      }
+
+      // 원형타공 마커
+      if (selectedProcs.has('circlecut')) {
+        const count = (procDetails.circlecut || {}).count || 1;
+        for (let i = 0; i < count; i++) {
+          const hole = new THREE.Mesh(new THREE.CircleGeometry(0.15, 32), purpleMat);
+          hole.position.set(0, topY + 0.001, (i * 0.4) - hl / 2);
+          hole.rotation.x = -Math.PI / 2;
+          scene.add(hole); sceneObjects.push(hole);
+        }
+      }
+
+      // 사각타공 마커
+      if (selectedProcs.has('squarecut')) {
+        const count = (procDetails.squarecut || {}).count || 1;
+        for (let i = 0; i < count; i++) {
+          const hole = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), purpleMat);
+          hole.position.set(0, topY + 0.001, (i * 0.4) - hl / 2);
+          hole.rotation.x = -Math.PI / 2;
+          scene.add(hole); sceneObjects.push(hole);
+        }
+      }
+
+      // 치수선
+      const lineMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+      const wLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-hw, topY, hl + 0.2), new THREE.Vector3(hw, topY, hl + 0.2)]), lineMat);
+      const lLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-hw - 0.2, topY, -hl), new THREE.Vector3(-hw - 0.2, topY, hl)]), lineMat);
+      scene.add(wLine, lLine); sceneObjects.push(wLine, lLine);
+
+      // 카메라
+      const maxDim = Math.max(w, l, h);
+      camera.position.set(maxDim * 0.7, maxDim * 0.7, maxDim * 1.2);
+      camera.lookAt(0, 0, 0); controls.target.set(0, 0, 0); controls.update();
+
+      document.getElementById('previewInfo').textContent = `${WOOD_DATA[currentWood].name} | ${width}×${length}mm | 가공: ${getProcSummary()}`;
+      document.getElementById('previewDim').textContent = `${width}×${length}mm`;
+    }
+
+    // ============================================================
+    // MODALS & HELPERS
+    // ============================================================
+    function openInstructionsModal(orderNumber, totalAmount) {
+      const m = document.getElementById('orderInstructionsModal');
+      const paymentQty = Math.ceil(totalAmount / 1000);
+      document.getElementById('finalQuoteAmount').textContent = totalAmount.toLocaleString() + '원';
+      document.getElementById('paymentQuantity').textContent = paymentQty + '개';
+      document.getElementById('finalOrderNumber').textContent = orderNumber;
+      m.style.display = 'flex';
+    }
+    function closeInstructionsModal() { document.getElementById('orderInstructionsModal').style.display = 'none'; }
+    function copyOrderNumber() {
+      const orderNumber = document.getElementById('finalOrderNumber').innerText;
+      const btn = document.getElementById('copyOrderBtn');
+      if (orderNumber && orderNumber !== '-') {
+        navigator.clipboard.writeText(orderNumber).then(() => {
+          const orig = btn.innerText; btn.innerText = '복사됨!'; btn.disabled = true;
+          setTimeout(() => { btn.innerText = orig; btn.disabled = false; }, 2000);
+        }).catch(() => { alert('복사에 실패했습니다. 직접 복사해주세요.'); });
+      }
+    }
+
+    function showCustomerStoreLinks() {
+      addBotMessage(`
+        <div style="padding:10px;">
+          <h4 style="margin-bottom:10px;">🛒 구매 링크 안내</h4>
+          <div class="payment-links">
+            <a class="payment-link" style="background:#03c75a;" href="https://smartstore.naver.com/irun2011" target="_blank">네이버 스마트스토어</a>
+            <a class="payment-link" style="background:#1184ff;" href="https://link.coupang.com/a/cQ9keF" target="_blank">쿠팡 브랜드샵</a>
+          </div>
+          <p style="font-size:12px;color:#666;margin-top:10px;">부자재 및 기성품은 위 링크에서 바로 구매 가능합니다.</p>
+        </div>`);
+    }
+
+    // ============================================================
+    // REPORT (PNG DOWNLOAD)
+    // ============================================================
+    async function generateReport() {
+      if (!orderList.length) { addBotMessage('주문목록이 비어있습니다.'); return; }
+      const c = document.getElementById('reportContainer');
+      let itemTotal = 0, rows = '';
+
+      orderList.forEach((item) => {
+        itemTotal += item.estimate;
+        let discRow = '';
+        if (item.discount > 0) {
+          discRow = `<tr style="color:#d9534f; background:#fff8f8;"><td style="border:1px solid #ddd;padding:8px;">이벤트 할인</td><td style="border:1px solid #ddd;padding:8px;" colspan="2">${item.discountDetails.join(', ')}</td><td style="border:1px solid #ddd;padding:8px;text-align:right;">-${item.discount.toLocaleString()}원</td></tr>`;
+        }
+        rows += `<tr>
+          <td style="border:1px solid #ddd;padding:12px;"><b>${item.woodName}</b></td>
+          <td style="border:1px solid #ddd;padding:12px;">${item.processingSummary}</td>
+          <td style="border:1px solid #ddd;padding:12px;">${item.width}×${item.length}mm / ${item.quantity}장</td>
+          <td style="border:1px solid #ddd;padding:12px;text-align:right;">${item.estimate.toLocaleString()}원</td>
+        </tr>${discRow}`;
+      });
+
+      const shipItems = calculateShippingCost(orderList);
+      let totalShip = 0;
+      shipItems.forEach(si => {
+        const sc = si.cost * si.count; totalShip += sc;
+        rows += `<tr style="background:#fcfcfc;"><td style="border:1px solid #ddd;padding:10px;"><b>예상 배송비</b></td><td style="border:1px solid #ddd;padding:10px;">${si.sizeCategory}</td><td style="border:1px solid #ddd;padding:10px;">수량: ${si.count}개</td><td style="border:1px solid #ddd;padding:10px;text-align:right;">${sc.toLocaleString()}원</td></tr>`;
+      });
+
+      const finalGT = itemTotal + totalShip;
+
+      c.innerHTML = `
+        <div style="border:2px solid #2c3e50; padding:20px;">
+          <div style="text-align:center;margin-bottom:30px;">
+            <h1 style="color:#2c3e50; margin:0; font-size:28px;">아이린가구 목재 견적 내역서</h1>
+            <p style="color:#7f8c8d; font-size:14px;">발행일: ${new Date().toLocaleString('ko-KR')}</p>
+          </div>
+          <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
+            <thead><tr style="background:#2c3e50; color:#fff;"><th style="padding:12px; border:1px solid #2c3e50;">항목</th><th style="padding:12px; border:1px solid #2c3e50;">가공정보</th><th style="padding:12px; border:1px solid #2c3e50;">규격/수량</th><th style="padding:12px; border:1px solid #2c3e50;">금액</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          <div style="text-align:right; border-top:2px solid #2c3e50; padding:20px 0;">
+            <span style="font-size:18px; color:#7f8c8d;">총 견적 합계 (배송비 포함):</span>
+            <span style="font-size:32px; font-weight:800; color:#e74c3c; margin-left:20px;">${finalGT.toLocaleString()} 원</span>
+          </div>
+          <div style="background:#f8f9fa; padding:15px; margin-top:20px; font-size:12px; color:#666; line-height:1.6;">
+            ※ 본 견적서는 자재 및 가공비 예산 산출을 위한 참고용입니다.<br>
+            ※ 실제 결제 전 상세 가감 내역이 발생할 수 있습니다.
+          </div>
+        </div>`;
+
+      try {
+        const canvas = await html2canvas(c, { scale: 2, useCORS: true });
+        const imgData = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `아이린가구_견적내역서_${Date.now()}.png`;
+        link.href = imgData;
+        link.click();
+        addBotMessage('견적 내역서가 이미지(PNG)로 다운로드되었습니다.');
+      } catch (e) {
+        console.error(e);
+        addBotMessage('내역서 생성 중 오류가 발생했습니다.');
+      }
+    }
+
+    // sync with submitOrder to show instructions modal
+    // and add download button to the chat
+    function updateSubmitOrderSuccess(on, gt) {
+      addBotMessage(`
+        <div style="text-align:center;padding:16px;">
+          <div style="font-size:40px;margin-bottom:8px;">✅</div>
+          <div style="font-size:18px;font-weight:700;color:#2c3e50;">주문 요청 완료!</div>
+          <p style="font-size:13px;color:#666;">주문번호: <b>${on}</b><br>총 결제금액: <b>${gt.toLocaleString()}원</b></p>
+          <div class="quick-buttons" style="justify-content:center;margin-top:12px;">
+            <span class="quick-btn" style="background:#34495e;" onclick="generateReport()">📸 견적내역서 저장</span>
+            <span class="quick-btn" onclick="openInstructionsModal('${on}', ${gt})">💰 결제방법 안내</span>
+          </div>
+          <div class="quick-buttons" style="justify-content:center;margin-top:8px;">
+            <span class="quick-btn" onclick="resetAll();showWoodCards();">새 견적 시작</span>
+          </div>
+        </div>`);
+    }
+
+    // ============================================================
+    // updateOrderBadge
+    // ============================================================
+    function updateOrderBadge() {
+      const badge = document.getElementById('orderBadge');
+      if (!badge) return;
+      if (orderList.length > 0) { badge.style.display = 'inline'; badge.textContent = orderList.length; }
+      else { badge.style.display = 'none'; }
+    }
+
+    // ============================================================
+    // ORDER PANEL (side panel)
+    // ============================================================
+    function ensureOrderPanel() {
+      if (document.getElementById('orderPanel')) return;
+      const panel = document.createElement('div');
+      panel.id = 'orderPanel';
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #eee;">
+          <h3 style="margin:0;font-size:16px;">주문 목록</h3>
+          <button onclick="toggleOrderPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#666;">&times;</button>
+        </div>
+        <div id="orderPanelContent" style="flex:1;overflow-y:auto;padding:10px;"></div>`;
+      const style = document.createElement('style');
+      style.textContent = `
+        #orderPanel { position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100vh;background:#fff;
+          box-shadow:-4px 0 20px rgba(0,0,0,0.15);z-index:10001;display:flex;flex-direction:column;transition:right 0.3s ease; }
+        #orderPanel.open { right:0; }
+        .order-item-card { background:#f9f9f9;border:1px solid #eee;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px; }
+        .order-item-card.accessory { background:#f0fff4;border-color:#b2dfdb; }
+        .order-item-card.discount { background:#fff8f8;border-color:#ffcdd2;color:#d32f2f; }
+        .order-item-card.shipping { background:#f3f4f6;border-color:#e0e0e0; }
+        .order-item-card .item-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:4px; }
+        .order-item-card .item-header b { font-size:13px; }
+        .order-item-card .item-detail { color:#666;line-height:1.5; }
+        .order-item-card .item-price { text-align:right;font-weight:700;color:#2c3e50;margin-top:4px; }
+        .order-summary-bar { padding:12px 16px;border-top:2px solid #2c3e50;background:#f8f9fa; }
+        .order-btn-row { display:flex;gap:8px;padding:10px 16px;border-top:1px solid #eee; }
+        .order-btn-row button { flex:1;padding:10px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px; }`;
+      document.head.appendChild(style);
+      document.body.appendChild(panel);
+    }
+
+    function toggleOrderPanel() {
+      ensureOrderPanel(); renderOrderPanel();
+      const panel = document.getElementById('orderPanel');
+      panel.classList.toggle('open');
+    }
+
+    function renderOrderPanel() {
+      ensureOrderPanel();
+      const c = document.getElementById('orderPanelContent');
+      if (!c) return;
+      if (orderList.length === 0) { c.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">주문 목록이 비어있습니다.</p>'; return; }
+      let html = '', itemTotal = 0;
+      const hasLoaded = orderList.some(i => i.isLoaded);
+      orderList.forEach((item, idx) => {
+        if (item.type === 'discount') {
+          html += `<div class="order-item-card discount"><div class="item-header"><b>이벤트 할인</b></div><div class="item-detail">${item.name || ''}</div><div class="item-price" style="color:#d32f2f;">${item.estimate < 0 ? '' : '-'}${Math.abs(item.estimate).toLocaleString()}원</div></div>`;
+          itemTotal += item.estimate;
+        } else if (item.type === 'shipping') {
+          html += `<div class="order-item-card shipping"><div class="item-header"><b>예상 배송비</b></div><div class="item-detail">${item.name || ''} ${item.quantity ? '(' + item.quantity + '개)' : ''}</div><div class="item-price">${item.estimate.toLocaleString()}원</div></div>`;
+          itemTotal += item.estimate;
+        } else if (item.type === 'accessory') {
+          html += `<div class="order-item-card accessory"><div class="item-header"><b>[부자재] ${item.name}</b>${!item.isLoaded ? '<button onclick="removeOrderItem(' + idx + ')" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;">✕</button>' : ''}</div><div class="item-detail">수량: ${item.quantity}개</div><div class="item-price">${item.estimate.toLocaleString()}원</div></div>`;
+          itemTotal += item.estimate;
+        } else {
+          const deleteBtn = !item.isLoaded ? `<button onclick="removeOrderItem(${idx})" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;">✕</button>` : '';
+          html += `<div class="order-item-card"><div class="item-header"><b>${item.woodName || item.woodTypeValue}</b>${deleteBtn}</div>
+            <div class="item-detail">${item.width || 0}×${item.length || 0}mm / ${item.quantity || 1}장<br>가공: ${item.processingSummary || '없음'}</div>
+            <div class="item-price">${item.estimate.toLocaleString()}원${item.discount > 0 ? ' <span style="color:#d32f2f;font-size:11px;">(할인 -' + item.discount.toLocaleString() + '원)</span>' : ''}</div></div>`;
+          itemTotal += item.estimate;
+        }
+      });
+      // Shipping (for non-loaded orders)
+      if (!hasLoaded) {
+        const shipItems = calculateShippingCost(orderList);
+        let shipTotal = 0;
+        shipItems.forEach(si => {
+          const sc = si.cost * si.count; shipTotal += sc;
+          html += `<div class="order-item-card shipping"><div class="item-header"><b>예상 배송비</b></div><div class="item-detail">${si.sizeCategory} (${si.count}개) × ${si.cost.toLocaleString()}원</div><div class="item-price">${sc.toLocaleString()}원</div></div>`;
+        });
+        itemTotal += shipTotal;
+      }
+      html += `<div class="order-summary-bar"><div style="display:flex;justify-content:space-between;"><span style="font-weight:600;">총 합계 (배송비 포함)</span><span style="font-size:18px;font-weight:800;color:#e74c3c;">${itemTotal.toLocaleString()}원</span></div></div>`;
+      html += `<div class="order-btn-row"><button style="background:#2ecc71;color:#fff;" onclick="showCustomerForm();toggleOrderPanel();">주문하기</button><button style="background:#34495e;color:#fff;" onclick="generateReport();">견적서 저장</button><button style="background:#e74c3c;color:#fff;" onclick="clearAllOrders();">전체 삭제</button></div>`;
+      c.innerHTML = html;
+    }
+
+    function removeOrderItem(idx) {
+      if (orderList[idx]?.isLoaded) { alert('불러온 주문은 삭제할 수 없습니다.'); return; }
+      orderList.splice(idx, 1);
+      saveOrders(); updateOrderBadge(); renderOrderPanel();
+    }
+
+    function clearAllOrders() {
+      if (orderList.some(i => i.isLoaded)) { alert('불러온 주문은 삭제할 수 없습니다.'); return; }
+      if (!confirm('모든 주문을 삭제하시겠습니까?')) return;
+      orderList = []; saveOrders(); updateOrderBadge(); renderOrderPanel();
+      addBotMessage('주문목록이 초기화되었습니다.');
+    }
+
+    // ============================================================
+    // localStorage PERSISTENCE
+    // ============================================================
+    function saveOrders() { localStorage.setItem('chatOrderData', JSON.stringify(orderList)); }
+    function loadOrders() {
+      try {
+        const saved = localStorage.getItem('chatOrderData');
+        if (saved) { orderList = JSON.parse(saved); updateOrderBadge(); }
+      } catch (e) { console.warn('주문 데이터 복원 실패:', e); localStorage.removeItem('chatOrderData'); }
+    }
+
+    // Hook into addToOrder to persist
+    const _origAddToOrder = addToOrder;
+    addToOrder = function () { _origAddToOrder(); saveOrders(); };
+    const _origRemoveOrderItem = removeOrderItem;
+    removeOrderItem = function (idx) { _origRemoveOrderItem(idx); saveOrders(); };
+
+    // Load on init
+    window.addEventListener('DOMContentLoaded', () => { loadOrders(); });
+
+    // ============================================================
+    // ACCESSORY DATA & CHAT CARDS
+    // ============================================================
+    const ACCESSORY_DATA = {
+      screws: {
+        title: '피스',
+        desc: '구리 천연 목공용 피스로, 가장 많이 사용하는 피스 입니다.',
+        items: [{ name: '목공용 피스 (20개)', price: 1000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_bolt2.png' }]
+      },
+      hinges: {
+        title: '경첩',
+        desc: '가구 문짝 등에 사용하는 기본 경첩과, 문이 부드럽게 닫히도록 도와주는 스무브 옵션입니다.',
+        items: [
+          { name: '110도 싱크 경첩 (1세트=2ea)', price: 2000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_hinge2.png' },
+          { name: '경첩 스무브 (1세트=2ea)', price: 1000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_hinge3.png' }
+        ]
+      },
+      sandpaper: {
+        title: '사포',
+        desc: '숫자가 낮을수록 거칠고, 높을수록 부드럽습니다.',
+        items: [
+          { name: '사포 #80 (2장)', price: 1000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_sapo_80.png' },
+          { name: '사포 #150 (2장)', price: 1000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_sapo_150.png' },
+          { name: '사포 #220 (2장)', price: 1000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_sapo_220.png' },
+          { name: '사포 #320 (2장)', price: 1000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_sapo_320.png' }
+        ]
+      },
+      tape: {
+        title: '엣지테이프',
+        desc: '목재의 절단면을 마감하여 깔끔하게 만들고 습기로부터 보호하는 마감재입니다.',
+        items: [
+          { name: 'PVC 엣지 테이프 (10m)', price: 8000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_edge_2.png' },
+          { name: '종이 엣지 테이프 (10m)', price: 12000, image: 'https://gi.esmplus.com/irn2011/click/texture/sub_edge_1.png' }
+        ]
+      }
+    };
+
+    function showAccessoryCategories() {
+      let h = '<div style="margin-bottom:6px;font-weight:600;">부자재 카테고리를 선택하세요:</div><div class="proc-grid" style="grid-template-columns:repeat(2,1fr);">';
+      const cats = [
+        { key: 'screws', label: '피스', img: 'https://gi.esmplus.com/irn2011/click/texture/sub_bolt.png' },
+        { key: 'hinges', label: '경첩', img: 'https://gi.esmplus.com/irn2011/click/texture/sub_hinge.png' },
+        { key: 'sandpaper', label: '사포', img: 'https://gi.esmplus.com/irn2011/click/texture/sub_sapo.png' },
+        { key: 'tape', label: '엣지테이프', img: 'https://gi.esmplus.com/irn2011/click/texture/sub_edge.png' }
+      ];
+      cats.forEach(c => {
+        h += `<div class="proc-item" onclick="showAccessoryItems('${c.key}')"><img src="${c.img}" alt="${c.label}"><div>${c.label}</div></div>`;
+      });
+      h += '</div>';
+      addBotMessage(h);
+    }
+
+    function showAccessoryItems(catKey) {
+      const cat = ACCESSORY_DATA[catKey];
+      if (!cat) return;
+      let h = `<div style="font-weight:600;margin-bottom:6px;">${cat.title}</div><p style="font-size:12px;color:#666;margin-bottom:8px;">${cat.desc}`;
+      if (catKey === 'tape') {
+        h += ` <a href="#" onclick="openVideoModal('https://www.youtube.com/embed/goC8S1Enjcg?si=7B93_Wk53lxoeqEj');return false;" style="color:#3498db;font-weight:600;">시공영상 보기</a>`;
+      }
+      h += '</p>';
+      cat.items.forEach((item, i) => {
+        const uid = catKey + '_' + i;
+        h += `<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #eee;border-radius:10px;margin-bottom:6px;background:#fff;">
+          <img src="${item.image}" style="width:50px;height:50px;border-radius:6px;object-fit:cover;" alt="${item.name}">
+          <div style="flex:1;"><div style="font-weight:600;font-size:12px;">${item.name}</div><div style="color:#e74c3c;font-size:12px;">${item.price.toLocaleString()}원</div></div>
+          <input type="number" id="accQty_${uid}" value="1" min="1" style="width:45px;text-align:center;border:1px solid #ddd;border-radius:6px;padding:4px;font-size:12px;">
+          <button onclick="addAccessoryToOrder('${catKey}',${i})" style="padding:6px 12px;background:#2ecc71;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">담기</button>
+        </div>`;
+      });
+      addBotMessage(h);
+    }
+
+    function addAccessoryToOrder(catKey, itemIndex) {
+      const cat = ACCESSORY_DATA[catKey];
+      const item = cat.items[itemIndex];
+      const uid = catKey + '_' + itemIndex;
+      const qtyEl = document.getElementById('accQty_' + uid);
+      const qty = parseInt(qtyEl?.value) || 1;
+      if (qty < 1) { addBotMessage('수량을 1개 이상 입력해주세요.'); return; }
+      orderList.push({ type: 'accessory', woodTypeValue: null, woodName: '[부자재]', name: item.name, width: 0, length: 0, quantity: qty, processingSummary: '-', selectedProcs: [], procDetails: {}, basePrice: item.price, additionalCost: 0, originalTotal: item.price * qty, discount: 0, discountDetails: [], estimate: item.price * qty });
+      saveOrders(); updateOrderBadge(); renderOrderPanel();
+      addBotMessage(`<b>${item.name}</b> ${qty}개를 주문목록에 추가했습니다. (${(item.price * qty).toLocaleString()}원)
+      <div class="quick-buttons"><span class="quick-btn" onclick="showAccessoryCategories()">부자재 더 보기</span><span class="quick-btn" onclick="showCustomerForm()">주문하기 (${orderList.length}건)</span></div>`);
+    }
+
+    // ============================================================
+    // PROGRESS MODAL
+    // ============================================================
+    function showProgressModal() {
+      document.getElementById('progressTitle').textContent = '전송 중...';
+      document.getElementById('progressIcon').src = 'https://i.gifer.com/ZZ5H.gif';
+      document.getElementById('progressModalCloseBtn').style.display = 'none';
+      document.getElementById('progressBar').style.backgroundColor = '#007bff';
+      document.getElementById('progressModalOverlay').style.display = 'flex';
+      updateProgress(10, '전송을 준비하고 있습니다...');
+    }
+    function updateProgress(pct, msg) {
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressStatusText').textContent = msg;
+    }
+    function showProgressSuccess(msg) {
+      updateProgress(100, msg);
+      document.getElementById('progressTitle').textContent = '전송 완료';
+      document.getElementById('progressIcon').src = 'https://i.imgur.com/UDS2wje.png';
+      document.getElementById('progressModalCloseBtn').style.display = 'block';
+    }
+    function showProgressError(msg) {
+      updateProgress(100, msg);
+      document.getElementById('progressBar').style.backgroundColor = '#dc3545';
+      document.getElementById('progressTitle').textContent = '전송 실패';
+      document.getElementById('progressIcon').src = 'https://i.imgur.com/P4Q6r5A.png';
+      document.getElementById('progressModalCloseBtn').style.display = 'block';
+    }
+    function hideProgressModal() { document.getElementById('progressModalOverlay').style.display = 'none'; }
+
+    // ============================================================
+    // VIDEO MODAL
+    // ============================================================
+    function openVideoModal(url) { document.getElementById('youtubeVideo').src = url; document.getElementById('videoModal').style.display = 'flex'; }
+    function closeVideoModal() { document.getElementById('videoModal').style.display = 'none'; document.getElementById('youtubeVideo').src = ''; }
+
+    // ============================================================
+    // LOAD ORDER (JSONP)
+    // ============================================================
+    let jsonpTimeout;
+    function openLoadModal() { document.getElementById('loadOrderModal').style.display = 'flex'; }
+    function closeLoadModal() { document.getElementById('loadOrderModal').style.display = 'none'; }
+    function formatPhoneNumber(input) {
+      let val = input.value.replace(/\D/g, '');
+      if (val.length > 3 && val.length <= 7) val = val.slice(0, 3) + '-' + val.slice(3);
+      else if (val.length > 7) val = val.slice(0, 3) + '-' + val.slice(3, 7) + '-' + val.slice(7, 11);
+      input.value = val;
+    }
+    function confirmLoadOrder() {
+      const phone = document.getElementById('load-phone').value.trim();
+      const orderNo = document.getElementById('load-orderNo').value.trim();
+      if (!phone || !orderNo) { alert('휴대폰 번호와 주문번호를 모두 입력해주세요.'); return; }
+      const btn = document.getElementById('loadOrderConfirmBtn');
+      btn.disabled = true; btn.textContent = '불러오는 중...';
+      const old = document.getElementById('jsonp_script'); if (old) old.remove();
+      jsonpTimeout = setTimeout(() => { if (btn.disabled) { alert('요청 시간이 초과되었습니다.'); btn.disabled = false; btn.textContent = '확인'; } }, 15000);
+      const script = document.createElement('script');
+      script.id = 'jsonp_script';
+      script.src = `${API_URL}?callback=handleOrderDataResponse&phone=${encodeURIComponent(phone)}&orderNo=${encodeURIComponent(orderNo)}`;
+      script.onerror = () => { clearTimeout(jsonpTimeout); alert('데이터를 불러오는 데 실패했습니다.'); btn.disabled = false; btn.textContent = '확인'; };
+      document.head.appendChild(script);
+    }
+    function handleOrderDataResponse(result) {
+      clearTimeout(jsonpTimeout);
+      const btn = document.getElementById('loadOrderConfirmBtn');
+      btn.disabled = false; btn.textContent = '확인';
+      if (result.result === 'success' && result.data && result.data.length > 0) {
+        orderList = [];
+        result.data.forEach(row => {
+          const summary = String(row['품명'] || row['주문내역 요약'] || '');
+          const estimate = parseFloat(row['합계']) || 0;
+          const processing = row['가공상세'] || row['가공'] || '';
+          if (summary === '총 합계') return;
+          let item = { isLoaded: true, estimate };
+          if (summary === '[이벤트 할인]') { item.type = 'discount'; item.name = processing || '이벤트 할인'; item.woodName = '할인'; }
+          else if (summary === '예상 배송비') { item.type = 'shipping'; item.name = processing || '배송비'; item.woodName = '배송'; item.quantity = row['수량']; }
+          else if (summary.startsWith('[부자재]')) { item.type = 'accessory'; item.name = summary.replace('[부자재] ', ''); item.woodName = '[부자재]'; item.quantity = row['수량']; }
+          else {
+            item.woodTypeValue = summary; item.woodName = summary;
+            item.width = row['폭(mm)'] || row['폭'] || 0; item.length = row['길이(mm)'] || row['길이'] || 0;
+            item.quantity = row['수량'] || 1;
+            item.processingSummary = processing || '가공 없음';
+            item.selectedProcs = []; item.procDetails = {}; item.discount = 0; item.discountDetails = [];
+          }
+          orderList.push(item);
+        });
+        saveOrders(); updateOrderBadge(); renderOrderPanel();
+        closeLoadModal();
+        addBotMessage('✅ 주문 내역을 불러왔습니다. 불러온 데이터는 수정 불가이며, 견적서 다운로드만 가능합니다.');
+        document.getElementById('load-phone').value = ''; document.getElementById('load-orderNo').value = '';
+      } else { alert('일치하는 주문 내역을 찾을 수 없습니다.'); }
+    }
+
+    // ============================================================
+    // ENHANCED processInput (accessory/load keywords)
+    // ============================================================
+    const _origProcessInput = processInput;
+    processInput = async function (text) {
+      const lo = text.toLowerCase().replace(/\s+/g, '');
+      if (lo.includes('부자재') || lo.includes('피스') || lo.includes('사포') || lo.includes('엣지') || lo.includes('테이프')) {
+        if (lo.includes('피스')) showAccessoryItems('screws');
+        else if (lo.includes('사포')) showAccessoryItems('sandpaper');
+        else if (lo.includes('엣지') || lo.includes('테이프')) showAccessoryItems('tape');
+        else showAccessoryCategories();
+        return;
+      }
+      if (lo.includes('불러오기') || lo.includes('이전주문')) { openLoadModal(); return; }
+      return _origProcessInput(text);
+    };
+
+    // ============================================================
+    // ENHANCED submitOrder with progress modal
+    // ============================================================
+    submitOrder = async function () {
+      const name = document.getElementById('custName').value.trim();
+      const phone = document.getElementById('custPhone').value.trim();
+      const email = document.getElementById('custEmail')?.value.trim() || '';
+      const memo = document.getElementById('custMemo').value.trim();
+      if (!name || !phone) { addBotMessage('성함과 연락처는 필수입니다.'); return; }
+      const phoneRegex = /^010-\d{4}-\d{4}$/;
+      if (!phoneRegex.test(phone)) { addBotMessage('휴대폰 번호를 010-0000-0000 형식으로 입력해주세요.'); return; }
+      showProgressModal();
+      updateStatus('주문 제출 중...', '');
+      try {
+        updateProgress(40, '견적 데이터를 서버에 저장하고 있습니다...');
+        const resp = await postToServer({ type: 'order', data: { customer: { name, phone, email, memo }, items: orderList, sessionId: SESSION_ID, timestamp: new Date().toISOString() } });
+        if (resp.result === 'success' || resp.orderNumber || resp.orderNo) {
+          const on = resp.orderNo || resp.orderNumber || resp.data?.orderNumber || 'IRN-' + Date.now();
+          let itemTotal = 0; orderList.forEach(i => { itemTotal += i.estimate; });
+          const shipItems = calculateShippingCost(orderList); let shipTotal = 0;
+          shipItems.forEach(si => shipTotal += (si.cost * si.count));
+          const grandTotal = itemTotal + shipTotal;
+          showProgressSuccess('견적이 성공적으로 전송되었습니다!');
+          setTimeout(() => {
+            hideProgressModal();
+            updateSubmitOrderSuccess(on, grandTotal);
+            openInstructionsModal(on, grandTotal);
+          }, 2000);
+          orderList = []; saveOrders(); updateOrderBadge(); renderOrderPanel(); updateStatus('주문 완료', on);
+        } else {
+          showProgressError('서버 전송 중 오류가 발생했습니다: ' + (resp.message || ''));
+          updateStatus('주문 실패', '');
+        }
+      } catch (e) {
+        showProgressError('전송 중 네트워크 오류가 발생했습니다.');
+        updateStatus('연결 오류', ''); console.error(e);
+      }
+    };
+
+    // Modal dismiss on overlay click
+    window.addEventListener('click', (e) => {
+      if (e.target.id === 'loadOrderModal') closeLoadModal();
+      if (e.target.id === 'videoModal') closeVideoModal();
+    });
+  </script>
+
+  <!-- ORDER INSTRUCTIONS MODAL -->
+  <div id="orderInstructionsModal" class="modal-overlay">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeInstructionsModal()">&times;</span>
+      <div class="modal-title">📦 주문 안내</div>
+      <div class="instruction-box">
+        <div class="instruction-row"><span>최종 견적 금액</span><b id="finalQuoteAmount">-</b></div>
+        <div class="instruction-row"><span>결제 수량 (1,000원 단위)</span><b id="paymentQuantity">-</b></div>
+        <div class="instruction-row">
+          <span>주문 번호</span>
+          <span style="display:flex;align-items:center;gap:8px;">
+            <b id="finalOrderNumber">-</b>
+            <button id="copyOrderBtn" onclick="copyOrderNumber()"
+              style="padding:4px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:11px;">📋
+              복사</button>
+          </span>
+        </div>
+      </div>
+      <p style="font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 20px;">
+        위 주문번호를 복사하신 후, 아래 결제 링크에서<br>
+        <b>결제 수량</b>만큼 개수를 설정하여 결제해 주세요.
+      </p>
+      <div class="payment-links">
+        <a class="payment-link" style="background:#03c75a;" href="https://naver.me/GJ5OEouG" target="_blank">네이버 스토어
+          결제</a>
+        <a class="payment-link" style="background:#1184ff;" href="https://link.coupang.com/a/cQ9keF" target="_blank">쿠팡
+          결제</a>
+      </div>
+      <div style="margin-top:15px;display:flex;gap:8px;justify-content:center;">
+        <a href="https://talk.naver.com/ct/wc4u6d" target="_blank"
+          style="display:inline-flex;align-items:center;gap:4px;padding:8px 14px;background:#03c75a;color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">💬
+          네이버 톡톡</a>
+        <a href="https://pf.kakao.com/_xgxkxjxj" target="_blank"
+          style="display:inline-flex;align-items:center;gap:4px;padding:8px 14px;background:#FEE500;color:#3C1E1E;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">💬
+          카카오톡 상담</a>
+      </div>
+      <button class="btn-checkout" style="margin-top:15px; background:#7f8c8d;"
+        onclick="closeInstructionsModal()">닫기</button>
+    </div>
+  </div>
+
+  <!-- PROGRESS MODAL -->
+  <div id="progressModalOverlay" class="modal-overlay">
+    <div class="modal-content" style="text-align: center;">
+      <h3 id="progressTitle">전송 중...</h3>
+      <img id="progressIcon" src="https://i.gifer.com/ZZ5H.gif" alt="로딩 중"
+        style="width:80px;height:80px;margin-bottom:20px;">
+      <p id="progressStatusText" style="margin-bottom:20px;font-size:1.1em;color:#333;">잠시만 기다려 주세요...</p>
+      <div style="background:#e0e0e0;border-radius:10px;padding:3px;overflow:hidden;">
+        <div id="progressBar"
+          style="width:0%;height:20px;background:#007bff;border-radius:7px;transition:width 0.5s ease-in-out;"></div>
+      </div>
+      <button id="progressModalCloseBtn" class="btn-checkout" style="display:none;margin-top:25px;background:#7f8c8d;"
+        onclick="hideProgressModal()">닫기</button>
+    </div>
+  </div>
+
+  <!-- VIDEO MODAL -->
+  <div id="videoModal" class="modal-overlay">
+    <div class="modal-content" style="max-width:800px;text-align:left;">
+      <span class="modal-close" onclick="closeVideoModal()">&times;</span>
+      <h3 style="margin-bottom:10px;">엣지 테이프 시공 방법</h3>
+      <div style="position:relative;width:100%;padding-bottom:56.25%;height:0;">
+        <iframe id="youtubeVideo" style="position:absolute;top:0;left:0;width:100%;height:100%;" src="" frameborder="0"
+          allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
+          allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOAD ORDER MODAL -->
+  <div id="loadOrderModal" class="modal-overlay">
+    <div class="modal-content" style="text-align:left;">
+      <span class="modal-close" onclick="closeLoadModal()">&times;</span>
+      <div class="modal-title">주문 내역 불러오기</div>
+      <div class="form-row"><label>휴대폰</label><input type="tel" id="load-phone" placeholder="010-1234-5678"></div>
+      <div class="form-row"><label>주문번호</label><input type="text" id="load-orderNo" placeholder="예: 20240718-001"></div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="btn-checkout" style="background:linear-gradient(135deg,#3498db,#2980b9);"
+          id="loadOrderConfirmBtn" onclick="confirmLoadOrder()">확인</button>
+        <button class="btn-checkout" style="background:#7f8c8d;" onclick="closeLoadModal()">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="reportContainer"></div>
+</body>
+
+</html>
