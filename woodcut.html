@@ -53,14 +53,44 @@
     }
 
     .chat-panel {
-      width: 500px;
-      min-width: 320px;
-      max-width: 600px;
+      width: 420px;
+      min-width: 300px;
+      max-width: 70vw;
       display: flex;
       flex-direction: column;
-      border-right: 1px solid #ddd;
-      background: #fff;
+      border-right: 1px solid #e0e0e0;
+      background: #fdfdfd;
       flex-shrink: 0;
+    }
+
+    .splitter {
+      width: 8px;
+      background: #eee;
+      cursor: col-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      z-index: 100;
+      flex-shrink: 0;
+    }
+
+    .splitter:hover,
+    .splitter.active {
+      background: #3498db;
+    }
+
+    .splitter::after {
+      content: "";
+      width: 2px;
+      height: 30px;
+      background: #ccc;
+      border-radius: 1px;
+    }
+
+    .splitter:hover::after,
+    .splitter.active::after {
+      background: #fff;
     }
 
     .preview-panel {
@@ -954,11 +984,11 @@
     .wood-btn-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       padding: 4px 0;
     }
 
-    .wood-select-btn {
+    .wood-card-item {
       display: flex;
       align-items: center;
       gap: 10px;
@@ -966,24 +996,16 @@
       border: 2px solid #e0e0e0;
       border-radius: 12px;
       background: #fff;
-      cursor: pointer;
       transition: all .2s;
       color: #333;
     }
 
-    .wood-select-btn:hover {
+    .wood-card-item:hover {
       border-color: #3498db;
       background: #f0f7ff;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(52, 152, 219, .15);
     }
 
-    .wood-select-btn.active {
-      border-color: #2ecc71;
-      background: #f0fff4;
-    }
-
-    .wood-select-btn .wood-thumb {
+    .wood-card-item .wood-thumb {
       width: 44px;
       height: 44px;
       border-radius: 8px;
@@ -992,24 +1014,77 @@
       border: 1px solid rgba(0, 0, 0, .1);
     }
 
-    .wood-select-btn .wood-label {
+    .wood-card-item .wood-label {
       flex: 1;
+      min-width: 0;
     }
 
-    .wood-select-btn .wood-label .wname {
+    .wood-card-item .wood-label .wname {
       font-size: 13px;
       font-weight: 700;
     }
 
-    .wood-select-btn .wood-label .wdesc {
+    .wood-card-item .wood-label .wdesc {
       font-size: 11px;
       color: #888;
       margin-top: 1px;
     }
 
-    .wood-select-btn .arrow-icon {
-      font-size: 16px;
-      color: #aaa;
+    .wood-btn-group {
+      display: flex;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .wood-btn-group button {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .wood-btn-select {
+      background: #2ecc71;
+      color: #fff;
+    }
+
+    .wood-btn-select:hover {
+      background: #27ae60;
+    }
+
+    .wood-btn-desc {
+      background: #3498db;
+      color: #fff;
+    }
+
+    .wood-btn-desc:hover {
+      background: #2980b9;
+    }
+
+    /* 채팅 내 YouTube 임베드 */
+    .yt-embed-wrap {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+      height: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 12px 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border: 1px solid #eee;
+    }
+
+    .yt-embed-wrap iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
     }
 
     .wood-detail-card {
@@ -1231,6 +1306,7 @@
         <a href="http://pf.kakao.com/_NKxaxcl/chat" target="_blank" class="sns-btn sns-kakao" title="카카오톡 상담">K</a>
       </div>
     </div>
+    <div class="splitter" id="splitter"></div>
     <div class="preview-panel">
       <div class="preview-header"><span>3D 미리보기</span><span id="previewDim"
           style="font-size:11px;color:#82b1ff;">-</span></div>
@@ -1305,7 +1381,9 @@
     let lastFocusedOption = null;
 
     // --- 초기화 ---
-    let orderList = [], priceTable = [], openWoodDetail = null;
+    let orderList = [];
+    let lastSubmittedOrders = []; // 주문 완료 후 견적서 저장을 위한 백업
+    let priceTable = [], openWoodDetail = null;
     let scene, camera, renderer, controls, boardGroup, woodMesh, sceneObjects = [];
 
     // ============================================================
@@ -1315,7 +1393,52 @@
       init3D();
       loadPriceTable();
       showGreeting();
+      initSplitter(); // 스플리터 초기화
     });
+
+    // ============================================================
+    // SPLITTER (RESIZE)
+    // ============================================================
+    function initSplitter() {
+      const splitter = document.getElementById('splitter');
+      const chatPanel = document.querySelector('.chat-panel');
+      const main = document.querySelector('.main');
+      let isDragging = false;
+
+      splitter.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        splitter.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none'; // 드래그 중 텍스트 선택 방지
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        // 메인 컨테이너에 대한 상대적 X 좌표 계산
+        const mainRect = main.getBoundingClientRect();
+        let newWidth = e.clientX - mainRect.left;
+
+        // 최소/최대 너비 제한
+        if (newWidth < 300) newWidth = 300;
+        if (newWidth > mainRect.width * 0.7) newWidth = mainRect.width * 0.7;
+
+        chatPanel.style.width = newWidth + 'px';
+
+        // 3D 캔버스 리사이즈 (즉시 반영)
+        onWindowResize();
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          splitter.classList.remove('active');
+          document.body.style.cursor = '';
+          document.body.style.removeProperty('user-select');
+          onWindowResize(); // 최종 리사이즈
+        }
+      });
+    }
 
     function showGreeting() {
       // 첫 인사 시퀀스
@@ -1524,6 +1647,17 @@
     function processInput(text) {
       const lo = text.toLowerCase().replace(/\s+/g, '');
 
+      // 0) 가격 비교 요청 감지 (사이즈 + 저렴/싼/비교/추천 키워드)
+      const sizeMatch = text.match(/(\d{2,4})\s*[xX×\*]\s*(\d{2,4})/);
+      const isPriceQuery = lo.includes('저렴') || lo.includes('싼') || lo.includes('비교') || lo.includes('가격') || lo.includes('얼마');
+      if (sizeMatch && isPriceQuery) {
+        const w = parseInt(sizeMatch[1]), l = parseInt(sizeMatch[2]);
+        const qm = text.match(/(\d+)\s*장/);
+        const q = qm ? parseInt(qm[1]) : null;
+        compareWoodPrices(w, l, q);
+        return true;
+      }
+
       // 1) 목재 선택
       const isConsulting = lo.includes('추천') || lo.includes('어때') || lo.includes('어떤') || lo.includes('상담') || lo.includes('좋아');
       const aliases = { mdf18T: ['mdf'], pvc18T: ['pvc', '피브이씨'], misong18T: ['미송'], pyeonbaek18T: ['편백'], mulbau18T: ['멀바우'] };
@@ -1540,10 +1674,7 @@
                 parseProcessingsFromText(text);
                 if (selectedProcs.size) showEstimate();
               } else {
-                currentWidth = w; currentLength = l;
-                addBotMessage(`사이즈: <b>${w} × ${l}mm</b> 선택!<br>수량은 몇 장이 필요하신가요?`);
-                updateWoodModel();
-                updateStatus('수량 입력 대기', '');
+                setSize(w, l, null); // 수량 없음 -> setSize로 넘겨서 경고 체크 후 수량 입력 요청
               }
             }
             return true;
@@ -1560,10 +1691,7 @@
           parseProcessingsFromText(text);
           if (selectedProcs.size) showEstimate();
         } else {
-          currentWidth = w; currentLength = l;
-          addBotMessage(`사이즈: <b>${w} × ${l}mm</b> 선택!<br>수량은 몇 장이 필요하신가요?`);
-          updateWoodModel();
-          updateStatus('수량 입력 대기', '');
+          setSize(w, l, null); // 수량 없음 -> setSize로 넘겨서 경고 체크 후 수량 입력 요청
         }
         return true;
       }
@@ -1590,11 +1718,15 @@
 
       // 5) 부자재 및 기타 기능 (통합됨)
       if (lo.includes('부자재') || lo.includes('피스') || lo.includes('사포') || lo.includes('엣지') || lo.includes('테이프')) {
-        if (lo.includes('피스')) showAccessoryItems('screws');
-        else if (lo.includes('사포')) showAccessoryItems('sandpaper');
-        else if (lo.includes('엣지') || lo.includes('테이프')) showAccessoryItems('tape');
-        else showAccessoryCategories();
-        return true;
+        // 질문 형태(뭐야, 뭔, 어떻게, 설명 등)인 경우 로컬에서 가로채지 않고 AI에게 넘김
+        const isQuestion = lo.includes('?') || lo.includes('뭐') || lo.includes('뭔') || lo.includes('무엇') || lo.includes('설명') || lo.includes('어떻게') || lo.includes('어떤') || lo.includes('의미');
+        if (!isQuestion) {
+          if (lo.includes('피스')) showSpecificAccessoryCategory('screws');
+          else if (lo.includes('사포')) showSpecificAccessoryCategory('sandpaper');
+          else if (lo.includes('엣지') || lo.includes('테이프')) showSpecificAccessoryCategory('tape');
+          else showAccessoryCategories();
+          return true;
+        }
       }
       if (lo.includes('불러오기') || lo.includes('이전주문')) { openLoadModal(); return true; }
 
@@ -1704,43 +1836,78 @@
       let h = '<div class="wood-btn-list">';
       WOOD_KEYS.forEach(key => {
         const wd = WOOD_DATA[key];
-        h += `<div>
-      <div class="wood-select-btn" onclick="toggleWoodDetail('${key}',this)" id="woodBtn_${key}">
+        h += `<div class="wood-card-item">
         <img class="wood-thumb" src="${wd.image}" alt="${wd.name}" onerror="this.style.display='none'">
         <div class="wood-label">
           <div class="wname">${wd.name}</div>
           <div class="wdesc">${wd.desc}</div>
         </div>
-        <span class="arrow-icon">▸</span>
-      </div>
-      <div id="woodDetail_${key}"></div>
-    </div>`;
+        <div class="wood-btn-group">
+          <button class="wood-btn-select" onclick="selectWoodFromCard('${key}')">선택</button>
+          <button class="wood-btn-desc" onclick="showWoodExplanation('${key}')">설명</button>
+        </div>
+      </div>`;
       });
       h += '</div>';
       addBotMessage(h);
     }
 
-    function toggleWoodDetail(key, btnEl) {
-      const container = document.getElementById('woodDetail_' + key);
-      if (!container) return;
-      if (openWoodDetail === key) { container.innerHTML = ''; openWoodDetail = null; if (btnEl) btnEl.classList.remove('active'); return; }
-      if (openWoodDetail) {
-        const prev = document.getElementById('woodDetail_' + openWoodDetail); if (prev) prev.innerHTML = '';
-        const pb = document.getElementById('woodBtn_' + openWoodDetail); if (pb) pb.classList.remove('active');
+    function showWoodExplanation(key) {
+      const wd = WOOD_DATA[key];
+      const ytUrl = WOOD_YOUTUBE[key] || '';
+      if (!wd) return;
+
+      // YouTube 썸네일 + 클릭하면 새 탭에서 열기 (file:// 환경에서 iframe Error 153 방지)
+      let videoHtml = '';
+      if (ytUrl) {
+        let videoId = '';
+        const shortMatch = ytUrl.match(/youtu\.be\/([\w-]+)/);
+        const longMatch = ytUrl.match(/[?&]v=([\w-]+)/);
+        videoId = shortMatch ? shortMatch[1] : (longMatch ? longMatch[1] : '');
+        if (videoId) {
+          videoHtml = `
+            <a href="${ytUrl}" target="_blank" style="display:block;position:relative;border-radius:12px;overflow:hidden;margin-top:12px;cursor:pointer;text-decoration:none;">
+              <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" style="width:100%;display:block;border-radius:12px;">
+              <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:42px;background:rgba(255,0,0,0.85);border-radius:12px;display:flex;align-items:center;justify-content:center;">
+                <div style="width:0;height:0;border-style:solid;border-width:10px 0 10px 18px;border-color:transparent transparent transparent #fff;margin-left:3px;"></div>
+              </div>
+              <div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.7);color:#fff;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;">▶ 영상 보기</div>
+            </a>`;
+        }
       }
-      const wd = WOOD_DATA[key], yt = WOOD_YOUTUBE[key] || '';
-      container.innerHTML = `
-    <div class="wood-detail-card">
-      <img src="${wd.image}" alt="${wd.name}" onerror="this.style.display='none'">
-      <div class="wood-detail-actions">
-        <button class="btn-select-wood" onclick="selectWoodFromCard('${key}')">✓ ${wd.name} 선택</button>
-        ${yt ? `<button class="btn-youtube" onclick="window.open('${yt}','_blank')">
-          <svg viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-          영상</button>`: ''}
-      </div>
-    </div>`;
-      openWoodDetail = key; if (btnEl) btnEl.classList.add('active');
-      setTimeout(() => { container.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 100);
+
+      const descriptions = {
+        mdf18T: 'MDF 18T는 가성비가 정말 좋은 소재예요 😊\n\n목재 섬유를 압축해서 만들어서 표면이 아주 매끄럽답니다. 덕분에 페인트 칠하기에도 좋고, 선반이나 수납장 만들 때 가장 많이 쓰여요.',
+        pvc18T: 'PVC보드는 완전 방수가 특징이에요! 🚿\n\n물이 닿아도 썩지 않아서 욕실이나 주방 싱크대 주변에 쓰기 딱 좋답니다. PET 코팅이 되어 있어서 깔끔하고 세탁실이나 발코니용으로도 인기가 많아요.',
+        misong18T: '미송집성목은 나무 본연의 따뜻한 느낌을 잘 살려줘요 🌲\n\n결이 부드러워서 DIY 하시는 분들이 가장 선호하시는 원목 중 하나죠. 샌딩이랑 코팅을 거치면 훨씬 더 고급스러운 느낌이 난답니다.',
+        pyeonbaek18T: '편백집성목은 향기부터 달라요! 🌿\n\n몸에 좋은 피톤치드가 나와서 아이들 방이나 침실 가구에 정말 추천드려요. 항균 효과도 있어서 건강까지 생각한 프리미엄 원목이랍니다.',
+        mulbau18T: '멀바우는 아주 단단하고 묵직한 하드우드예요 💪\n\n특유의 짙은 색감이 정말 고급스럽죠. 내구성이 워낙 좋아서 무거운 걸 올리는 테이블 상판이나 고풍스러운 인테리어에 많이 사용돼요.'
+      };
+
+      const detailText = (descriptions[key] || wd.desc).replace(/\n/g, '<br>');
+
+      // 타이핑 효과: 잠시 타이핑 표시 후 메시지를 보여줌
+      showTyping();
+      setTimeout(() => {
+        hideTyping();
+        addBotMessage(`
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <img src="${wd.image}" style="width:36px; height:36px; border-radius:8px; object-fit:cover; border:1px solid #eee;">
+            <b style="color:#2c3e50; font-size:14px;">${wd.name}</b>
+          </div>
+          <div style="font-size:13px; line-height:1.7; color:#333;">${detailText}</div>
+          <div style="display:flex; gap:6px; font-size:11px; color:#666; margin-top:10px; flex-wrap:wrap;">
+            <span style="background:#f0f7ff; color:#3498db; padding:3px 8px; border-radius:12px; font-weight:600;">두께 ${wd.thickness}mm</span>
+            <span style="background:#f8f9fa; padding:3px 8px; border-radius:12px;">샌딩 ${wd.canSand ? '가능 ✅' : '불가 ❌'}</span>
+            <span style="background:#f8f9fa; padding:3px 8px; border-radius:12px;">코팅 ${wd.canCoat ? '가능 ✅' : '불가 ❌'}</span>
+          </div>
+          ${videoHtml}
+          <div class="quick-buttons" style="margin-top:12px;">
+            <span class="quick-btn" style="background:#2ecc71; color:#fff; border-color:#2ecc71; font-weight:700;" onclick="selectWoodFromCard('${key}')">✓ 이 목재로 선택할게요</span>
+            <span class="quick-btn" onclick="showWoodCards()">다른 목재 더보기</span>
+          </div>
+        `);
+      }, 800);
     }
 
     function selectWoodFromCard(key) {
@@ -1760,14 +1927,61 @@
     // ============================================================
     // SIZE
     // ============================================================
+    // ============================================================
+    // SIZE
+    // ============================================================
+    const LAMINATED_WOODS = ['misong18T', 'pyeonbaek18T', 'mulbau18T'];
+
     function setSize(w, l, qty) {
       if (w > 600) { addBotMessage('폭은 최대 <b>600mm</b>까지 가능합니다.'); return; }
       if (l > 1800) { addBotMessage('길이는 최대 <b>1800mm</b>까지 가능합니다.'); return; }
       if (w < 10 || l < 10) { addBotMessage('최소 사이즈는 <b>10mm</b>입니다.'); return; }
-      currentWidth = w; currentLength = l; currentQty = qty || 1;
-      addBotMessage(`사이즈: <b>${w} × ${l}mm</b>, 수량: <b>${currentQty}장</b><br>가공 옵션을 선택하세요. (복수 선택 가능)`);
-      showProcessingOptions();
-      updateWoodModel();
+
+      // 집성목 나뭇결 방향 경고 (폭 > 길이)
+      if (LAMINATED_WOODS.includes(currentWood) && w > l) {
+        addBotMessage(`
+          <div style="border:2px solid #e74c3c; padding:15px; border-radius:12px; background:#fff5f5; margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+               <span style="font-size:24px;">⚠️</span>
+               <b style="color:#c0392b; font-size:16px;">파손 주의 안내</b>
+            </div>
+            고객님, 입력하신 사이즈(<b>${w} x ${l}mm</b>)는 <span style="color:#e74c3c;font-weight:bold;">폭이 길이보다 넓습니다.</span><br><br>
+            선택하신 집성목(미송, 편백, 멀바우)은 나뭇결 방향이 있어, 이대로 제작 시 <b>결대로 쪼개지거나 배송 중 파손될 위험</b>이 매우 높습니다.<br>
+            (※ MDF, PVC는 해당되지 않음)<br><br>
+            <img src="./wood_grain_warning.png" style="width:100%; max-width:400px; border-radius:8px; display:block; margin:0 auto 10px auto; border:1px solid #ddd;">
+            혹시 <b>${l} x ${w}mm</b> (나뭇결 길이 방향)으로 변경하시겠습니까?
+            <div class="quick-buttons" style="margin-top:15px; justify-content:center;">
+               <span class="quick-btn" style="background:#27ae60; color:#fff;" onclick="applySize(${l}, ${w}, ${qty})">🔄 ${l}x${w}로 변경 (권장)</span>
+               <span class="quick-btn" style="background:#e74c3c; color:white; border-color:#c0392b;" onclick="applySize(${w}, ${l}, ${qty})">⚠️ 아니요, 이대로 진행 (파손감수)</span>
+            </div>
+          </div>
+        `);
+        return;
+      }
+
+      applySize(w, l, qty);
+    }
+
+    function applySize(w, l, qty) {
+      currentWidth = w; currentLength = l;
+
+      if (qty) {
+        currentQty = qty;
+        let msg = `사이즈: <b>${w} × ${l}mm</b>, 수량: <b>${currentQty}장</b><br>`;
+        if (LAMINATED_WOODS.includes(currentWood) && w > l) {
+          msg += `<span style="color:#e74c3c; font-size:12px;">(※ 파손 위험 감수하고 진행)</span><br>`;
+        }
+        msg += `가공 옵션을 선택하세요. (복수 선택 가능)`;
+        addBotMessage(msg);
+        showProcessingOptions();
+        updateWoodModel();
+        updateStatus('가공 옵션 대기', '');
+      } else {
+        // 수량이 없으면 수량 입력 요청
+        addBotMessage(`사이즈: <b>${w} × ${l}mm</b> 선택!<br>수량은 몇 장이 필요하신가요?`);
+        updateWoodModel();
+        updateStatus('수량 입력 대기', '');
+      }
     }
 
     // ============================================================
@@ -2335,39 +2549,71 @@
   <div class="form-row"><label>성함 *</label><input type="text" id="custName" placeholder="홍길동"></div>
   <div class="form-row"><label>연락처 *</label><input type="tel" id="custPhone" placeholder="010-1234-5678" oninput="formatPhoneNumber(this)" maxlength="13"></div>
   <div class="form-row"><label>이메일</label><input type="email" id="custEmail" placeholder="example@email.com (선택)"></div>
-  <div class="form-row"><label>요청사항</label><textarea id="custMemo" rows="2" placeholder="특이사항"></textarea></div>
   <div style="text-align:right;font-size:14px;font-weight:700;color:#e74c3c;margin:8px 0;">총 결제금액: ${gt.toLocaleString()}원</div>
   <button class="btn-submit-order" onclick="submitOrder()">주문 제출하기</button>
 </div>`);
     }
 
-    async function submitOrder() {
-      const name = document.getElementById('custName').value.trim();
-      const phone = document.getElementById('custPhone').value.trim();
-      const email = document.getElementById('custEmail')?.value.trim() || '';
-      const memo = document.getElementById('custMemo').value.trim();
-      if (!name || !phone) { addBotMessage('성함과 연락처는 필수입니다.'); return; }
-      showTyping(); updateStatus('주문 제출 중...', '');
-      try {
-        const resp = await postToServer({ type: 'order', data: { customer: { name, phone, email, memo }, items: orderList, sessionId: SESSION_ID, timestamp: new Date().toISOString() } });
-        hideTyping();
-        if (resp.result === 'success' || resp.orderNumber || resp.orderNo) {
-          const on = resp.orderNo || resp.orderNumber || resp.data?.orderNumber || 'IRN-' + Date.now();
-          let itemTotal = 0;
-          orderList.forEach(i => { itemTotal += i.estimate; });
-          const shipItems = calculateShippingCost(orderList);
-          let shipTotal = 0;
-          shipItems.forEach(si => shipTotal += (si.cost * si.count));
-          const grandTotal = itemTotal + shipTotal;
+    function resetEstimate() { currentWidth = 0; currentLength = 0; currentQty = 1; selectedProcs.clear(); procDetails = {}; }
 
-          updateSubmitOrderSuccess(on, grandTotal);
+    function compareWoodPrices(w, l, q) {
+      if (!priceTable.length) {
+        addBotMessage('단가표를 아직 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+      const area = w * l;
+      const results = WOOD_KEYS.map(key => {
+        const wd = WOOD_DATA[key];
+        const unitPrice = getUnitPrice(key, area);
+        return { key, name: wd.name, price: unitPrice, desc: wd.desc };
+      }).filter(r => r.price > 0).sort((a, b) => a.price - b.price);
 
-          orderList = []; updateOrderBadge(); renderOrderPanel(); updateStatus('주문 완료', on);
-        } else { addBotMessage('주문 제출 중 문제가 발생했습니다.'); updateStatus('주문 실패', ''); }
-      } catch (e) { hideTyping(); addBotMessage('네트워크 오류입니다.'); updateStatus('연결 오류', ''); console.error(e); }
+      if (!results.length) {
+        addBotMessage(`${w}×${l}mm 사이즈에 대한 가격 정보를 찾을 수 없습니다.`);
+        return;
+      }
+
+      const cheapest = results[0];
+      let rows = results.map((r, i) => {
+        const tag = i === 0 ? ' <span style="color:#2ecc71;font-weight:800;">✅ 최저가</span>' : '';
+        const selectAction = q
+          ? `selectWood('${r.key}');setSize(${w},${l},${q});`
+          : `selectWood('${r.key}');currentWidth=${w};currentLength=${l};addBotMessage('<b>${r.name}</b> ${w}×${l}mm 사이즈를 선택하셨습니다.<br>수량은 몇 장이 필요하신가요?');updateWoodModel();updateStatus('수량 입력 대기','');`;
+
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #f0f2f5;${i === 0 ? 'background:#f0fff4;border-radius:8px;' : ''}">
+          <div style="flex:1;min-width:0;margin-right:8px;">
+            <span style="font-weight:700;color:#2c3e50;">${i + 1}. ${r.name}</span>${tag}
+            <div style="font-size:11px;color:#7f8c8d;margin-top:2px;">${r.desc}</div>
+          </div>
+          <div style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <span style="font-weight:800;color:${i === 0 ? '#e74c3c' : '#555'};font-size:15px;white-space:nowrap;">${r.price.toLocaleString()}원</span>
+            <button onclick="${selectAction}" style="border:1px solid #3498db;background:#fff;color:#3498db;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;cursor:pointer;">선택</button>
+          </div>
+        </div>`;
+      }).join('');
+
+      const footerBtns = q
+        ? `<span class="quick-btn" onclick="selectWood('${cheapest.key}');setSize(${w},${l},${q});">${cheapest.name}으로 진행하기</span>`
+        : `<span class="quick-btn" onclick="selectWood('${cheapest.key}');currentWidth=${w};currentLength=${l};addBotMessage('<b>${cheapest.name}</b> ${w}×${l}mm 사이즈를 선택하셨습니다.<br>수량은 몇 장이 필요하신가요?');updateWoodModel();updateStatus('수량 입력 대기','');">${cheapest.name} 견적 보기</span>`;
+
+      addBotMessage(`
+        <div style="border:2px solid #3498db;border-radius:16px;overflow:hidden;">
+          <div style="background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;padding:14px 16px;">
+            <div style="font-size:16px;font-weight:800;">📊 ${w}×${l}mm 목재 가격 비교</div>
+            <div style="font-size:12px;opacity:.8;margin-top:4px;">면적: ${area.toLocaleString()}mm² 기준${q ? ` (수량: ${q}장)` : ' (1장, 가공 전)'}</div>
+          </div>
+          <div style="padding:4px 0;">${rows}</div>
+          <div style="padding:12px 16px;background:#f8f9fa;border-top:1px solid #eee;">
+            <div style="font-size:13px;color:#2c3e50;margin-bottom:8px;">💡 <b>${cheapest.name}</b>이(가) 가장 저렴합니다!</div>
+            <div class="quick-buttons">
+              ${footerBtns}
+              <span class="quick-btn" onclick="showWoodCards()">목재 직접 선택</span>
+            </div>
+          </div>
+        </div>
+      `);
     }
 
-    function resetEstimate() { currentWidth = 0; currentLength = 0; currentQty = 1; selectedProcs.clear(); procDetails = {}; }
     function confirmReset() {
       if (confirm('주문 목록과 채팅 내용을 모두 초기화하시겠습니까?')) {
         resetAll();
@@ -2809,11 +3055,12 @@
     // REPORT (PNG DOWNLOAD)
     // ============================================================
     async function generateReport() {
-      if (!orderList.length) { addBotMessage('주문목록이 비어있습니다.'); return; }
+      const items = orderList.length ? orderList : lastSubmittedOrders;
+      if (!items.length) { addBotMessage('주문목록이 비어있습니다.'); return; }
       const c = document.getElementById('reportContainer');
       let itemTotal = 0, rows = '';
 
-      orderList.forEach((item) => {
+      items.forEach((item) => {
         itemTotal += item.estimate;
         let discRow = '';
         if (item.discount > 0) {
@@ -2831,7 +3078,7 @@
         </tr>${discRow}`;
       });
 
-      const shipItems = calculateShippingCost(orderList);
+      const shipItems = calculateShippingCost(items);
       let totalShip = 0;
       shipItems.forEach(si => {
         const sc = si.cost * si.count; totalShip += sc;
@@ -2990,6 +3237,20 @@
       `, true);
     }
 
+    function showSpecificAccessoryCategory(catKey) {
+      const cardId = 'acc_card_' + (++currentAccCardId);
+      addBotMessage(`
+        <div class="acc-card" id="${cardId}">
+          <div class="acc-card-header">
+            <span class="acc-card-title">🛒 부자재 추가</span>
+            <button class="acc-close-btn" onclick="this.closest('.bot-msg').remove()">✕</button>
+          </div>
+          <div class="acc-content"></div>
+        </div>
+      `, true);
+      renderAccessoryItems(cardId, catKey);
+    }
+
     function renderAccessoryItems(cardId, catKey) {
       const card = document.getElementById(cardId);
       if (!card) return;
@@ -3072,7 +3333,7 @@
       orderList.push({ type: 'accessory', woodTypeValue: null, woodName: '[부자재]', name: item.name, width: 0, length: 0, quantity: qty, processingSummary: '-', selectedProcs: [], procDetails: {}, basePrice: item.price, additionalCost: 0, originalTotal: item.price * qty, discount: 0, discountDetails: [], estimate: item.price * qty });
       saveOrders(); updateOrderBadge(); renderOrderPanel();
       addBotMessage(`<b>${item.name}</b> ${qty}개를 주문목록에 추가했습니다. (${(item.price * qty).toLocaleString()}원)
-      <div class="quick-buttons"><span class="quick-btn" onclick="initiateOrder()">주문 확인하기 (${orderList.length}건)</span></div>`);
+      <div class="quick-buttons"><span class="quick-btn" onclick="clearChatAndStartNew()">다른 목재 추가</span><span class="quick-btn" onclick="initiateOrder()">주문 확인하기 (${orderList.length}건)</span></div>`);
     }
 
     // ============================================================
@@ -3176,35 +3437,68 @@
       const name = document.getElementById('custName').value.trim();
       const phone = document.getElementById('custPhone').value.trim();
       const email = document.getElementById('custEmail')?.value.trim() || '';
-      const memo = document.getElementById('custMemo').value.trim();
+
       if (!name || !phone) { addBotMessage('성함과 연락처는 필수입니다.'); return; }
       const phoneRegex = /^010-\d{4}-\d{4}$/;
       if (!phoneRegex.test(phone)) { addBotMessage('휴대폰 번호를 010-0000-0000 형식으로 입력해주세요.'); return; }
+
       showProgressModal();
       updateStatus('주문 제출 중...', '');
+
       try {
         updateProgress(40, '견적 데이터를 서버에 저장하고 있습니다...');
-        const resp = await postToServer({ type: 'order', data: { customer: { name, phone, email, memo }, items: orderList, sessionId: SESSION_ID, timestamp: new Date().toISOString() } });
+
+        // 배송비 계산
+        const shipItems = calculateShippingCost(orderList);
+        let shipTotal = 0;
+        shipItems.forEach(si => shipTotal += (si.cost * si.count));
+
+        // 아이템 소계
+        let itemTotal = 0;
+        orderList.forEach(i => { itemTotal += i.estimate; });
+
+        const grandTotal = itemTotal + shipTotal;
+
+        // 서버 전송 데이터 구성
+        const orderPayload = {
+          type: 'order',
+          data: {
+            customer: { name, phone, email, memo: '' }, // memo 필드 비움
+            orders: orderList, // 'items' 대신 'orders' 사용
+            shippingItems: shipItems,
+            shippingCost: shipTotal,
+            totalPrice: grandTotal,
+            sessionId: SESSION_ID,
+            timestamp: new Date().toISOString()
+          }
+        };
+
+        const resp = await postToServer(orderPayload);
+
         if (resp.result === 'success' || resp.orderNumber || resp.orderNo) {
           const on = resp.orderNo || resp.orderNumber || resp.data?.orderNumber || 'IRN-' + Date.now();
-          let itemTotal = 0; orderList.forEach(i => { itemTotal += i.estimate; });
-          const shipItems = calculateShippingCost(orderList); let shipTotal = 0;
-          shipItems.forEach(si => shipTotal += (si.cost * si.count));
-          const grandTotal = itemTotal + shipTotal;
+
           showProgressSuccess('견적이 성공적으로 전송되었습니다!');
           setTimeout(() => {
             hideProgressModal();
             updateSubmitOrderSuccess(on, grandTotal);
             openInstructionsModal(on, grandTotal);
           }, 2000);
-          orderList = []; saveOrders(); updateOrderBadge(); renderOrderPanel(); updateStatus('주문 완료', on);
+
+          lastSubmittedOrders = [...orderList]; // 백업 저장
+          orderList = [];
+          saveOrders();
+          updateOrderBadge();
+          renderOrderPanel();
+          updateStatus('주문 완료', on);
         } else {
           showProgressError('서버 전송 중 오류가 발생했습니다: ' + (resp.message || ''));
           updateStatus('주문 실패', '');
         }
       } catch (e) {
         showProgressError('전송 중 네트워크 오류가 발생했습니다.');
-        updateStatus('연결 오류', ''); console.error(e);
+        updateStatus('연결 오류', '');
+        console.error(e);
       }
     };
 
@@ -3244,10 +3538,10 @@
           결제</a>
       </div>
       <div style="margin-top:15px;display:flex;gap:8px;justify-content:center;">
-        <a href="https://talk.naver.com/ct/wc4u6d" target="_blank"
+        <a href="https://talk.naver.com/profile/wc80z0" target="_blank"
           style="display:inline-flex;align-items:center;gap:4px;padding:8px 14px;background:#03c75a;color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">💬
           네이버 톡톡</a>
-        <a href="https://pf.kakao.com/_xgxkxjxj" target="_blank"
+        <a href="http://pf.kakao.com/_NKxaxcl/chat" target="_blank"
           style="display:inline-flex;align-items:center;gap:4px;padding:8px 14px;background:#FEE500;color:#3C1E1E;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">💬
           카카오톡 상담</a>
       </div>
