@@ -1172,20 +1172,71 @@
     }
 
     @media(max-width:800px) {
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px 15px;
+      }
+
+      .header h1 {
+        font-size: 16px;
+      }
+
+      .header .subtitle {
+        font-size: 10px;
+      }
+
+      .header>div:last-child {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        gap: 4px;
+      }
+
+      .header button {
+        padding: 5px 8px !important;
+        font-size: 10px !important;
+        flex: 1;
+        text-align: center;
+        white-space: nowrap;
+      }
+
       .main {
         flex-direction: column;
       }
 
       .chat-panel {
-        width: 100%;
+        width: 100% !important;
         max-width: 100%;
         height: 50vh;
         border-right: none;
         border-bottom: 1px solid #ddd;
+        flex-basis: auto !important;
+      }
+
+      .splitter {
+        width: 100%;
+        height: 12px;
+        cursor: row-resize;
+        background: #f0f2f5;
+        border-top: 1px solid #ddd;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .splitter::after {
+        width: 30px;
+        height: 2px;
       }
 
       .preview-panel {
-        height: 50vh;
+        height: auto;
+        flex: 1;
+      }
+
+      .preview-header {
+        cursor: row-resize;
+        touch-action: none;
       }
 
       .order-panel {
@@ -1408,43 +1459,49 @@
     // ============================================================
     function initSplitter() {
       const splitter = document.getElementById('splitter');
+      const previewHeader = document.querySelector('.preview-header');
       const chatPanel = document.querySelector('.chat-panel');
       const main = document.querySelector('.main');
       let isDragging = false;
 
-      // Mouse Events (PC)
-      splitter.addEventListener('mousedown', (e) => {
+      const startDrag = (e) => {
         isDragging = true;
         splitter.classList.add('active');
-        document.body.style.cursor = window.innerWidth <= 800 ? 'row-resize' : 'col-resize';
+        const isMobile = window.innerWidth <= 800;
+        document.body.style.cursor = isMobile ? 'row-resize' : 'col-resize';
         document.body.style.userSelect = 'none';
-      });
+      };
 
-      document.addEventListener('mousemove', (e) => {
+      const doDrag = (e) => {
         if (!isDragging) return;
         const isMobile = window.innerWidth <= 800;
         const mainRect = main.getBoundingClientRect();
 
-        if (isMobile) {
-          // Vertical Resize
-          let newHeight = e.clientY - mainRect.top;
-          if (newHeight < 100) newHeight = 100; // Min height
-          if (newHeight > mainRect.height - 100) newHeight = mainRect.height - 100; // Max height
-          chatPanel.style.height = newHeight + 'px';
-          // Flex basis update might be needed if height doesn't work directly in some flex setups,
-          // but with flex-direction column, height should work if flex is handled correctly.
-          // However, .chat-panel is flex item.
+        let clientX, clientY;
+        if (e.touches) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
         } else {
-          // Horizontal Resize
-          let newWidth = e.clientX - mainRect.left;
+          clientX = e.clientX;
+          clientY = e.clientY;
+        }
+
+        if (isMobile) {
+          let newHeight = clientY - mainRect.top;
+          if (newHeight < 100) newHeight = 100;
+          if (newHeight > mainRect.height - 100) newHeight = mainRect.height - 100;
+          chatPanel.style.height = newHeight + 'px';
+        } else {
+          let newWidth = clientX - mainRect.left;
           if (newWidth < 300) newWidth = 300;
           if (newWidth > mainRect.width * 0.7) newWidth = mainRect.width * 0.7;
           chatPanel.style.width = newWidth + 'px';
         }
         onWindowResize();
-      });
+        if (e.cancelable) e.preventDefault();
+      };
 
-      document.addEventListener('mouseup', () => {
+      const stopDrag = () => {
         if (isDragging) {
           isDragging = false;
           splitter.classList.remove('active');
@@ -1452,44 +1509,18 @@
           document.body.style.removeProperty('user-select');
           onWindowResize();
         }
-      });
+      };
 
-      // Touch Events (Mobile)
-      splitter.addEventListener('touchstart', (e) => {
-        isDragging = true;
-        splitter.classList.add('active');
-        document.body.style.userSelect = 'none';
-      }, { passive: false });
+      // Mouse
+      splitter.addEventListener('mousedown', startDrag);
+      document.addEventListener('mousemove', doDrag);
+      document.addEventListener('mouseup', stopDrag);
 
-      document.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        const isMobile = window.innerWidth <= 800;
-        const mainRect = main.getBoundingClientRect();
-        const touch = e.touches[0];
-
-        if (isMobile) {
-          let newHeight = touch.clientY - mainRect.top;
-          if (newHeight < 100) newHeight = 100;
-          if (newHeight > mainRect.height - 100) newHeight = mainRect.height - 100;
-          chatPanel.style.height = newHeight + 'px';
-        } else {
-          let newWidth = touch.clientX - mainRect.left;
-          if (newWidth < 300) newWidth = 300;
-          if (newWidth > mainRect.width * 0.7) newWidth = mainRect.width * 0.7;
-          chatPanel.style.width = newWidth + 'px';
-        }
-        onWindowResize();
-        if (e.cancelable) e.preventDefault(); // Prevent scrolling
-      }, { passive: false });
-
-      document.addEventListener('touchend', () => {
-        if (isDragging) {
-          isDragging = false;
-          splitter.classList.remove('active');
-          document.body.style.removeProperty('user-select');
-          onWindowResize();
-        }
-      });
+      // Touch
+      splitter.addEventListener('touchstart', startDrag, { passive: false });
+      previewHeader.addEventListener('touchstart', startDrag, { passive: false }); // Add handle to header too
+      document.addEventListener('touchmove', doDrag, { passive: false });
+      document.addEventListener('touchend', stopDrag);
     }
 
     function toggle3DView() {
