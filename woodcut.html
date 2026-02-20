@@ -1244,17 +1244,24 @@
       }
 
       .proc-grid {
-        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)) !important;
-        gap: 4px !important;
+        display: grid !important;
+        width: 100% !important;
+        min-width: 260px !important;
+        /* Force bubble to expand */
+        grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)) !important;
+        gap: 5px !important;
+        margin: 5px 0 !important;
       }
 
       .proc-item {
-        padding: 6px !important;
+        padding: 4px !important;
         font-size: 10px !important;
+        min-width: 0 !important;
       }
 
       .proc-item img {
-        max-width: 45px !important;
+        max-width: 40px !important;
+        margin-bottom: 2px !important;
       }
 
       .chat-input-area {
