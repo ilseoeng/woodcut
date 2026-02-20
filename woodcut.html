@@ -2914,7 +2914,9 @@
       const woodMat = new THREE.MeshPhongMaterial({ map: texture });
       const pinkMat = new THREE.MeshPhongMaterial({ color: 0xff69b4 });
       const blueMat = new THREE.MeshPhongMaterial({ color: 0x007bff, transparent: true, opacity: 0.7 });
-      const purpleMat = new THREE.MeshBasicMaterial({ color: 0x800080, side: THREE.DoubleSide });
+      const purpleMat = new THREE.MeshBasicMaterial({ color: 0x800080, side: THREE.DoubleSide }); // Square Cut
+      const redMat = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide });    // Circle Cut
+      const orangeMat = new THREE.MeshBasicMaterial({ color: 0xffa500, side: THREE.DoubleSide }); // Hinge
 
       const materials = Array(6).fill(null).map(() => woodMat.clone());
 
@@ -2978,20 +2980,18 @@
             }
 
             if (px > 0 || py > 0) {
-              const hole = new THREE.Mesh(new THREE.CircleGeometry(17.5 / 100, 32), purpleMat);
+              const hole = new THREE.Mesh(new THREE.CircleGeometry(17.5 / 100, 32), orangeMat);
               hole.position.set((px / 100) - hw, topY + 0.001, hl - (py / 100));
               hole.rotation.x = -Math.PI / 2;
               scene.add(hole); sceneObjects.push(hole);
-
-              const labelHtml = `<div style="padding:2px 4px; background:rgba(0,123,255,0.9); color:#fff; border-radius:4px; font-size:11px;">H${i + 1}</div>`;
-              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'white');
+              // Board labels removed as per request
             }
           });
         } else {
           // fallback: 균등 배치
           for (let i = 0; i < count; i++) {
             const t = (i + 1) / (count + 1);
-            const hole = new THREE.Mesh(new THREE.CircleGeometry(17.5 / 100, 32), purpleMat);
+            const hole = new THREE.Mesh(new THREE.CircleGeometry(17.5 / 100, 32), orangeMat);
             hole.position.set(23 / 100 - hw, topY + 0.001, hl - t * l);
             hole.rotation.x = -Math.PI / 2;
             scene.add(hole); sceneObjects.push(hole);
@@ -3028,14 +3028,11 @@
               // User Input X (from Left): -hw + xUnit
               // User Input Y (from Top): hl - yUnit
 
-              const hole = new THREE.Mesh(new THREE.CircleGeometry(rUnit, 32), purpleMat);
+              const hole = new THREE.Mesh(new THREE.CircleGeometry(rUnit, 32), redMat);
               hole.position.set(-hw + xUnit, topY + 0.001, hl - yUnit);
               hole.rotation.x = -Math.PI / 2;
               scene.add(hole); sceneObjects.push(hole);
-
-              // 라벨: X, Y, R 값 표시
-              const labelHtml = `<div style="padding:2px 4px; background:rgba(128,0,128,0.9); color:#fff; border-radius:4px; font-size:11px;">C${i + 1}</div>`;
-              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'white');
+              // Board labels removed as per request
             }
           });
         }
@@ -3070,9 +3067,7 @@
               hole.position.set(centerX, topY + 0.001, centerZ);
               hole.rotation.x = -Math.PI / 2;
               scene.add(hole); sceneObjects.push(hole);
-
-              const labelHtml = `<div style="padding:2px 4px; background:rgba(44,62,80,0.9); color:#fff; border-radius:4px; font-size:11px;">S${i + 1}</div>`;
-              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'white');
+              // Board labels removed as per request
             }
           });
         }
