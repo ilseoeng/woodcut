@@ -1865,14 +1865,15 @@
         const longMatch = ytUrl.match(/[?&]v=([\w-]+)/);
         videoId = shortMatch ? shortMatch[1] : (longMatch ? longMatch[1] : '');
         if (videoId) {
+          const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
           videoHtml = `
-            <a href="${ytUrl}" target="_blank" style="display:block;position:relative;border-radius:12px;overflow:hidden;margin-top:12px;cursor:pointer;text-decoration:none;">
+            <div onclick="openVideoModal('${embedUrl}', '${wd.name} 설명 영상');return false;" style="display:block;position:relative;border-radius:12px;overflow:hidden;margin-top:12px;cursor:pointer;text-decoration:none;">
               <img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" style="width:100%;display:block;border-radius:12px;">
               <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:60px;height:42px;background:rgba(255,0,0,0.85);border-radius:12px;display:flex;align-items:center;justify-content:center;">
                 <div style="width:0;height:0;border-style:solid;border-width:10px 0 10px 18px;border-color:transparent transparent transparent #fff;margin-left:3px;"></div>
               </div>
-              <div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.7);color:#fff;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;">▶ 영상 보기</div>
-            </a>`;
+              <div style="position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.7);color:#fff;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;">▶ 영상 보기 (팝업)</div>
+            </div>`;
         }
       }
 
@@ -3277,7 +3278,7 @@
         </div>
         <div style="font-weight:800;font-size:17px;color:#2c3e50;margin-bottom:6px;">${cat.title}</div>
         <p style="font-size:12px;color:#7f8c8d;line-height:1.5;margin-bottom:15px;">${cat.desc}
-          ${catKey === 'tape' ? `<a href="#" onclick="openVideoModal('https://www.youtube.com/embed/goC8S1Enjcg?si=7B93_Wk53lxoeqEj');return false;" style="color:#3498db;font-weight:600;text-decoration:none;margin-left:5px;">[시공영상 보기]</a>` : ''}
+          ${catKey === 'tape' ? `<a href="#" onclick="openVideoModal('https://www.youtube.com/embed/goC8S1Enjcg?si=7B93_Wk53lxoeqEj', '엣지 테이프 시공 방법');return false;" style="color:#3498db;font-weight:600;text-decoration:none;margin-left:5px;">[시공영상 보기]</a>` : ''}
         </p>
         <div class="acc-item-list">
           ${cat.items.map((item, i) => {
@@ -3369,8 +3370,15 @@
     // ============================================================
     // VIDEO MODAL
     // ============================================================
-    function openVideoModal(url) { document.getElementById('youtubeVideo').src = url; document.getElementById('videoModal').style.display = 'flex'; }
-    function closeVideoModal() { document.getElementById('videoModal').style.display = 'none'; document.getElementById('youtubeVideo').src = ''; }
+    function openVideoModal(url, title) {
+      document.getElementById('youtubeVideo').src = url;
+      if (title) document.getElementById('videoModalTitle').textContent = title;
+      document.getElementById('videoModal').style.display = 'flex';
+    }
+    function closeVideoModal() {
+      document.getElementById('videoModal').style.display = 'none';
+      document.getElementById('youtubeVideo').src = '';
+    }
 
     // ============================================================
     // LOAD ORDER (JSONP)
@@ -3570,7 +3578,7 @@
   <div id="videoModal" class="modal-overlay">
     <div class="modal-content" style="max-width:800px;text-align:left;">
       <span class="modal-close" onclick="closeVideoModal()">&times;</span>
-      <h3 style="margin-bottom:10px;">엣지 테이프 시공 방법</h3>
+      <h3 id="videoModalTitle" style="margin-bottom:10px;">영상 보기</h3>
       <div style="position:relative;width:100%;padding-bottom:56.25%;height:0;">
         <iframe id="youtubeVideo" style="position:absolute;top:0;left:0;width:100%;height:100%;" src="" frameborder="0"
           allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"
