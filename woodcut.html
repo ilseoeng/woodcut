@@ -2630,12 +2630,12 @@
       const grandTotal = total + totalShip;
 
       panel.innerHTML = `
-        <div class="op-header">
-          <span>${isReadOnly ? '주문 내역 조회 (수정 불가)' : '주문 목록'}</span>
-          <button onclick="toggleOrderPanel(false)" style="background:none; border:none; color:#fff; font-size:24px; cursor:pointer;">&times;</button>
+        <div class="order-panel-header">
+          <span>${isReadOnly ? '주문 내역 조회 (수정 불가)' : `주문 목록 (${orderList.length}건)`}</span>
+          <button onclick="toggleOrderPanel(false)" style="background:none; border:none; color:#fff; font-size:18px; cursor:pointer;">&times;</button>
         </div>
-        <div class="op-body">
-          <table class="op-table">
+        <div class="order-panel-body">
+          <table class="order-table">
             <thead>
               <tr>
                 <th>목재/품명</th>
@@ -2647,18 +2647,23 @@
               </tr>
             </thead>
             <tbody>
-              ${rows || '<tr><td colspan="6" style="padding:40px; color:#999;">목록이 비어 있습니다.</td></tr>'}
+              ${rows || '<tr><td colspan="6" style="padding:40px; color:#999; text-align:center;">목록이 비어 있습니다.</td></tr>'}
             </tbody>
+            <tfoot>
+               <tr class="total-row">
+                 <td colspan="4" style="text-align:right;">총 합계</td>
+                 <td colspan="2" style="color:#e74c3c; font-size:16px;">${grandTotal.toLocaleString()}원</td>
+               </tr>
+            </tfoot>
           </table>
-          <div class="op-total-bar">
-            총합계: <span id="op-grandtotal">${grandTotal.toLocaleString()}원</span>
-          </div>
         </div>
-        <div class="op-footer">
+        <div class="order-panel-footer">
           ${isReadOnly ?
-          `<button class="op-btn" onclick="toggleOrderPanel(false)" style="background:#666; flex:1;">닫기</button>` :
-          `<button class="op-btn" onclick="clearAllOrders()" style="background:#e74c3c;">전체삭제</button>
-             <button class="op-btn" onclick="initiateOrder()" style="background:#007bff; flex:1;">주문하기</button>`
+          `<button class="btn-checkout" onclick="toggleOrderPanel(false)" style="background:#666 !important; width:100%;">닫기</button>` :
+          `<div style="display:flex; gap:8px;">
+             <button class="oi-remove-btn" onclick="clearAllOrders()" style="background:#e74c3c; padding:10px 15px; border-radius:10px; flex-shrink:0;">전체삭제</button>
+             <button class="btn-checkout" onclick="initiateOrder()" style="flex:1;">주문하기</button>
+           </div>`
         }
         </div>
       `;
