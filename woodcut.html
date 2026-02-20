@@ -1308,8 +1308,15 @@
     </div>
     <div class="splitter" id="splitter"></div>
     <div class="preview-panel">
-      <div class="preview-header"><span>3D 미리보기</span><span id="previewDim"
-          style="font-size:11px;color:#82b1ff;">-</span></div>
+      <div class="preview-header">
+        <span>3D 미리보기</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span id="previewDim" style="font-size:11px;color:#82b1ff;">-</span>
+          <button id="btnToggle3D" onclick="toggle3DView()"
+            style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;padding:0 4px;"
+            title="화면 확대/축소">⛶</button>
+        </div>
+      </div>
       <div class="preview-canvas-wrap">
         <canvas id="previewCanvas"></canvas>
         <div id="labels-container"
@@ -1405,27 +1412,35 @@
       const main = document.querySelector('.main');
       let isDragging = false;
 
+      // Mouse Events (PC)
       splitter.addEventListener('mousedown', (e) => {
         isDragging = true;
         splitter.classList.add('active');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none'; // 드래그 중 텍스트 선택 방지
+        document.body.style.cursor = window.innerWidth <= 800 ? 'row-resize' : 'col-resize';
+        document.body.style.userSelect = 'none';
       });
 
       document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
-
-        // 메인 컨테이너에 대한 상대적 X 좌표 계산
+        const isMobile = window.innerWidth <= 800;
         const mainRect = main.getBoundingClientRect();
-        let newWidth = e.clientX - mainRect.left;
 
-        // 최소/최대 너비 제한
-        if (newWidth < 300) newWidth = 300;
-        if (newWidth > mainRect.width * 0.7) newWidth = mainRect.width * 0.7;
-
-        chatPanel.style.width = newWidth + 'px';
-
-        // 3D 캔버스 리사이즈 (즉시 반영)
+        if (isMobile) {
+          // Vertical Resize
+          let newHeight = e.clientY - mainRect.top;
+          if (newHeight < 100) newHeight = 100; // Min height
+          if (newHeight > mainRect.height - 100) newHeight = mainRect.height - 100; // Max height
+          chatPanel.style.height = newHeight + 'px';
+          // Flex basis update might be needed if height doesn't work directly in some flex setups,
+          // but with flex-direction column, height should work if flex is handled correctly.
+          // However, .chat-panel is flex item.
+        } else {
+          // Horizontal Resize
+          let newWidth = e.clientX - mainRect.left;
+          if (newWidth < 300) newWidth = 300;
+          if (newWidth > mainRect.width * 0.7) newWidth = mainRect.width * 0.7;
+          chatPanel.style.width = newWidth + 'px';
+        }
         onWindowResize();
       });
 
@@ -1435,29 +1450,93 @@
           splitter.classList.remove('active');
           document.body.style.cursor = '';
           document.body.style.removeProperty('user-select');
-          onWindowResize(); // 최종 리사이즈
+          onWindowResize();
+        }
+      });
+
+      // Touch Events (Mobile)
+      splitter.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        splitter.classList.add('active');
+        document.body.style.userSelect = 'none';
+      }, { passive: false });
+
+      document.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const isMobile = window.innerWidth <= 800;
+        const mainRect = main.getBoundingClientRect();
+        const touch = e.touches[0];
+
+        if (isMobile) {
+          let newHeight = touch.clientY - mainRect.top;
+          if (newHeight < 100) newHeight = 100;
+          if (newHeight > mainRect.height - 100) newHeight = mainRect.height - 100;
+          chatPanel.style.height = newHeight + 'px';
+        } else {
+          let newWidth = touch.clientX - mainRect.left;
+          if (newWidth < 300) newWidth = 300;
+          if (newWidth > mainRect.width * 0.7) newWidth = mainRect.width * 0.7;
+          chatPanel.style.width = newWidth + 'px';
+        }
+        onWindowResize();
+        if (e.cancelable) e.preventDefault(); // Prevent scrolling
+      }, { passive: false });
+
+      document.addEventListener('touchend', () => {
+        if (isDragging) {
+          isDragging = false;
+          splitter.classList.remove('active');
+          document.body.style.removeProperty('user-select');
+          onWindowResize();
         }
       });
     }
 
-    function showGreeting() {
-      // 첫 인사 시퀀스
-      showTyping();
-      setTimeout(() => {
-        hideTyping();
-        addBotMessage(`
-          <div style="font-size: 1.1em; margin-bottom: 8px; font-weight: 600; color: #2c3e50;">👋 안녕하세요! 아이린가구 AI 비서입니다.</div>
-          원하시는 목재의 종류와 사이즈(가로x세로)를 말씀해주시면, 
-          <b>3D 미리보기</b>와 함께 <b>실전 견적</b>을 즉시 계산해 드릴게요.<br><br>
-          먼저 아래에서 원하시는 목재를 선택하시거나, 채팅창에 "MDF 400x600 2장 재단해줘"와 같이 입력해 보세요!<br><br>
-          혹시 어떤 목재를 선택할지 고민되시나요? <b>사용하실 용도</b>를 말씀해 주시면 딱 맞는 목재를 추천해 드릴게요.
-        `);
+    function toggle3DView() {
+      const chatPanel = document.querySelector('.chat-panel');
+      const splitter = document.getElementById('splitter');
+      const btn = document.getElementById('btnToggle3D');
+      const isHidden = chatPanel.style.display === 'none';
 
-        // 목재 카드 표시 (약간의 지연 후)
-        setTimeout(() => {
-          showWoodCards();
-        }, 600);
-      }, 600);
+      if (isHidden) {
+        chatPanel.style.display = '';
+        splitter.style.display = '';
+        btn.textContent = '⛶'; // Expand icon
+      } else {
+        chatPanel.style.display = 'none';
+        splitter.style.display = 'none';
+        btn.textContent = '↩'; // Restore icon
+      }
+      onWindowResize();
+    }
+
+    async function showGreeting() {
+      // 1. 인사
+      showTyping();
+      await new Promise(r => setTimeout(r, 600));
+      hideTyping();
+      addBotMessage(`<div style="font-size: 1.1em; font-weight: 600; color: #2c3e50;">👋 안녕하세요! 아이린가구 AI 비서입니다.</div>`);
+
+      // 2. 기능 소개
+      showTyping();
+      await new Promise(r => setTimeout(r, 1000));
+      hideTyping();
+      addBotMessage(`원하시는 목재의 종류와 사이즈(가로x세로)를 말씀해주시면, <br><b>3D 미리보기</b>와 함께 <b>실전 견적</b>을 즉시 계산해 드릴게요.`);
+
+      // 3. 사용법 안내
+      showTyping();
+      await new Promise(r => setTimeout(r, 1000));
+      hideTyping();
+      addBotMessage(`먼저 아래에서 원하시는 목재를 선택하시거나,<br>채팅창에 "MDF 400x600 2장 재단해줘"와 같이 입력해 보세요!`);
+
+      // 4. 추천 제안
+      showTyping();
+      await new Promise(r => setTimeout(r, 1000));
+      hideTyping();
+      addBotMessage(`혹시 어떤 목재를 선택할지 고민되시나요?<br><b>사용하실 용도</b>를 말씀해 주시면 딱 맞는 목재를 추천해 드릴게요.`);
+
+      // 5. 목재 카드
+      setTimeout(showWoodCards, 500);
     }
 
     // ============================================================
