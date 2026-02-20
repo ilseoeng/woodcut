@@ -2983,8 +2983,8 @@
               hole.rotation.x = -Math.PI / 2;
               scene.add(hole); sceneObjects.push(hole);
 
-              const labelHtml = `<div style="line-height:1.2;">No.${i + 1}<br><span style="font-size:10px; font-weight:normal;">X:${px}, Y:${py}</span></div>`;
-              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'black');
+              const labelHtml = `<div style="padding:2px 4px; background:rgba(0,123,255,0.9); color:#fff; border-radius:4px; font-size:11px;">H${i + 1}</div>`;
+              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'white');
             }
           });
         } else {
@@ -3034,8 +3034,8 @@
               scene.add(hole); sceneObjects.push(hole);
 
               // 라벨: X, Y, R 값 표시
-              const labelHtml = `<div style="line-height:1.2;">No.${i + 1}<br><span style="font-size:10px; font-weight:normal;">X:${hInfo.x}, Y:${hInfo.y}<br>R:${hInfo.r}</span></div>`;
-              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'black');
+              const labelHtml = `<div style="padding:2px 4px; background:rgba(128,0,128,0.9); color:#fff; border-radius:4px; font-size:11px;">C${i + 1}</div>`;
+              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'white');
             }
           });
         }
@@ -3071,8 +3071,8 @@
               hole.rotation.x = -Math.PI / 2;
               scene.add(hole); sceneObjects.push(hole);
 
-              const labelHtml = `<div style="line-height:1.2;">No.${i + 1}<br><span style="font-size:10px; font-weight:normal;">X:${x}, Y:${y}<br>W:${w}, H:${h}</span></div>`;
-              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'black');
+              const labelHtml = `<div style="padding:2px 4px; background:rgba(44,62,80,0.9); color:#fff; border-radius:4px; font-size:11px;">S${i + 1}</div>`;
+              createLabel(labelHtml, hole.position.clone().add(new THREE.Vector3(0, 0.2, 0)), 'white');
             }
           });
         }
