@@ -1244,7 +1244,29 @@
       }
 
       .proc-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      }
+
+      .chat-input-area {
+        padding: 8px;
+        gap: 4px;
+      }
+
+      .chat-input-area input {
+        padding: 8px 12px;
+        font-size: 13px;
+        min-width: 0;
+      }
+
+      .chat-input-area button {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      .sns-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 14px;
       }
     }
 
