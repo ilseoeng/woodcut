@@ -3215,9 +3215,7 @@
     // ============================================================
     // REPORT (PNG DOWNLOAD)
     // ============================================================
-    async function generateReport() {
-      const items = orderList.length ? orderList : lastSubmittedOrders;
-      if (!items.length) { addBotMessage('주문목록이 비어있습니다.'); return; }
+    function prepareReportContainer(items) {
       const c = document.getElementById('reportContainer');
       let itemTotal = 0, rows = '';
 
@@ -3249,7 +3247,7 @@
       const finalGT = itemTotal + totalShip;
 
       c.innerHTML = `
-        <div style="border:2px solid #2c3e50; padding:20px;">
+        <div style="border:2px solid #2c3e50; padding:20px; background:#ffffff;">
           <div style="text-align:center;margin-bottom:30px;">
             <h1 style="color:#2c3e50; margin:0; font-size:28px;">아이린가구 목재 견적 내역서</h1>
             <p style="color:#7f8c8d; font-size:14px;">발행일: ${new Date().toLocaleString('ko-KR')}</p>
@@ -3267,6 +3265,13 @@
             ※ 실제 결제 전 상세 가감 내역이 발생할 수 있습니다.
           </div>
         </div>`;
+      return c;
+    }
+
+    async function generateReport() {
+      const items = orderList.length ? orderList : lastSubmittedOrders;
+      if (!items.length) { addBotMessage('주문목록이 비어있습니다.'); return; }
+      const c = prepareReportContainer(items);
 
       try {
         const canvas = await html2canvas(c, { scale: 2, useCORS: true });
@@ -3618,27 +3623,14 @@
       try {
         updateProgress(30, '견적서 이미지를 생성하고 있습니다...');
 
-        // 견적서 이미지 캡처 (비가시 상태로 처리)
-        const overlay = document.getElementById('orderPanelOverlay');
-        const isAlreadyVisible = overlay.style.display === 'flex';
-        if (!isAlreadyVisible) {
-          overlay.style.visibility = 'hidden';
-          overlay.style.display = 'flex';
-        }
-
-        renderOrderPanel(); // 최신 상태 반영
-        const panel = document.getElementById('orderPanel');
-        const canvas = await html2canvas(panel, {
+        // 견적서 이미지 캡처 (기존의 불안정한 modal 캡처 대신 전용 reportContainer 사용)
+        const c = prepareReportContainer(orderList);
+        const canvas = await html2canvas(c, {
           scale: 2,
           useCORS: true,
           backgroundColor: '#ffffff',
           logging: false
         });
-
-        if (!isAlreadyVisible) {
-          overlay.style.display = 'none';
-          overlay.style.visibility = 'visible';
-        }
 
         const quoteImage = canvas.toDataURL('image/jpeg', 0.8);
 
