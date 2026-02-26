@@ -1375,7 +1375,8 @@
       <button onclick="confirmReset()"
         style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:20px;font-size:11px;cursor:pointer;">초기화</button>
       <button onclick="generateReport()"
-        style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:20px;font-size:11px;cursor:pointer;">견적서</button>
+        style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:20px;font-size:11px;cursor:pointer;">견적서
+        다운</button>
       <button onclick="toggleOrderPanel()"
         style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;cursor:pointer;">
         주문목록 <span id="orderBadge"
@@ -1471,8 +1472,10 @@
     // ============================================================
     // STATE
     // ============================================================
-    let currentWood = 'woodType1'; // 기본값 (추후 초기화)
-    let currentWidth = 0, currentLength = 0, currentQty = 1;
+    // --- 초기 설정 (미리보기용 기본값) ---
+    let currentWood = 'mdf18T';
+    let currentWidth = 400, currentLength = 600, currentQty = 1;
+    let showDimensions = false; // 사이즈 입력 전까지는 치수 숨김
     let selectedProcs = new Set(); // 복수 선택 키 집합
     let procDetails = {}; // {angled:{sides:['A','B']}, round:{corners:['1','3']}, ...}
     let lastFocusedOption = null;
@@ -1580,33 +1583,39 @@
       onWindowResize();
     }
 
-    async function showGreeting() {
-      // 1. 인사
-      showTyping();
-      await new Promise(r => setTimeout(r, 600));
-      hideTyping();
-      addBotMessage(`<div style="font-size: 1.1em; font-weight: 600; color: #2c3e50;">👋 안녕하세요! 아이린가구 AI 비서입니다.</div>`);
+    async function showGreeting(isAddAnother = false) {
+      if (isAddAnother) {
+        // [추가] 목재 추가 시 간결한 인삿말
+        showTyping();
+        await new Promise(r => setTimeout(r, 600));
+        hideTyping();
+        addBotMessage(`<div style="font-size: 1.1em; font-weight: 600; color: #2c3e50;">👋 추가할 목재를 선택해주세요.</div>`);
+        addBotMessage(`아래 목재들 중 원하시는 종류를 선택하시면 견적을 시작합니다.`);
+        setTimeout(showWoodCards, 400);
+      } else {
+        // [복구] 처음 접속 시 정식 인삿말
+        showTyping();
+        await new Promise(r => setTimeout(r, 600));
+        hideTyping();
+        addBotMessage(`<div style="font-size: 1.1em; font-weight: 600; color: #2c3e50;">👋 안녕하세요! 아이린가구 AI 비서입니다.</div>`);
 
-      // 2. 기능 소개
-      showTyping();
-      await new Promise(r => setTimeout(r, 1000));
-      hideTyping();
-      addBotMessage(`원하시는 목재의 종류와 사이즈(가로x세로)를 말씀해주시면, <br><b>3D 미리보기</b>와 함께 <b>실전 견적</b>을 즉시 계산해 드릴게요.`);
+        showTyping();
+        await new Promise(r => setTimeout(r, 1000));
+        hideTyping();
+        addBotMessage(`원하시는 목재의 종류와 사이즈(가로x세로)를 말씀해주시면, <br><b>3D 미리보기</b>와 함께 <b>실전 견적</b>을 즉시 계산해 드릴게요.`);
 
-      // 3. 사용법 안내
-      showTyping();
-      await new Promise(r => setTimeout(r, 1000));
-      hideTyping();
-      addBotMessage(`먼저 아래에서 원하시는 목재를 선택하시거나,<br>채팅창에 "MDF 400x600 2장 재단해줘"와 같이 입력해 보세요!`);
+        showTyping();
+        await new Promise(r => setTimeout(r, 1000));
+        hideTyping();
+        addBotMessage(`먼저 아래에서 원하시는 목재를 선택하시거나,<br>채팅창에 "MDF 400x600 2장 재단해줘"와 같이 입력해 보세요!`);
 
-      // 4. 추천 제안
-      showTyping();
-      await new Promise(r => setTimeout(r, 1000));
-      hideTyping();
-      addBotMessage(`혹시 어떤 목재를 선택할지 고민되시나요?<br><b>사용하실 용도</b>를 말씀해 주시면 딱 맞는 목재를 추천해 드릴게요.`);
+        showTyping();
+        await new Promise(r => setTimeout(r, 1000));
+        hideTyping();
+        addBotMessage(`혹시 어떤 목재를 선택할지 고민되시나요?<br><b>사용하실 용도</b>를 말씀해 주시면 딱 맞는 목재를 추천해 드릴게요.`);
 
-      // 5. 목재 카드
-      setTimeout(showWoodCards, 500);
+        setTimeout(showWoodCards, 500);
+      }
     }
 
     // ============================================================
@@ -1770,7 +1779,7 @@
     function clearChatAndStartNew() {
       document.getElementById('chatMessages').innerHTML = '';
       resetEstimate();
-      showGreeting();
+      showGreeting(true); // 목재 추가 모드로 시작
     }
     function scrollChat() { const c = document.getElementById('chatMessages'); setTimeout(() => { c.scrollTop = c.scrollHeight; }, 50); }
     function showTyping() { const d = document.createElement('div'); d.className = 'typing-indicator'; d.id = 'typingIndicator'; d.innerHTML = '<span></span><span></span><span></span>'; document.getElementById('chatMessages').appendChild(d); scrollChat(); }
@@ -2066,7 +2075,13 @@
     }
 
     function selectWood(key) {
-      currentWood = key; currentWidth = 0; currentLength = 0; currentQty = 1;
+      currentWood = key;
+      // 사용자가 직접 사이즈를 입력하기 전(showDimensions=false)에만 기본값(400x600)을 적용합니다.
+      if (!showDimensions) {
+        currentWidth = 400;
+        currentLength = 600;
+      }
+      currentQty = currentQty || 1;
       selectedProcs.clear(); procDetails = {};
       const wd = WOOD_DATA[key];
       addBotMessage(`<b>${wd.name}</b> 선택!<br>사이즈를 입력해주세요 (가로x세로 mm)<br>(ex: 400x1000 사이즈)`);
@@ -2114,6 +2129,7 @@
 
     function applySize(w, l, qty) {
       currentWidth = w; currentLength = l;
+      showDimensions = true; // 실제 사이즈 입력 시 치수 표시 활성화
 
       if (qty) {
         currentQty = qty;
@@ -2718,7 +2734,11 @@
 </div>`);
     }
 
-    function resetEstimate() { currentWidth = 0; currentLength = 0; currentQty = 1; selectedProcs.clear(); procDetails = {}; updateWoodModel(); }
+    function resetEstimate() {
+      currentWood = 'mdf18T'; currentWidth = 400; currentLength = 600; currentQty = 1;
+      showDimensions = false; // 치수 다시 숨김
+      selectedProcs.clear(); procDetails = {}; updateWoodModel();
+    }
 
     function compareWoodPrices(w, l, q) {
       if (!priceTable.length) {
@@ -2818,6 +2838,7 @@
         const ww = wrap.clientWidth, hh = wrap.clientHeight;
         if (ww > 0 && hh > 0) { camera.aspect = ww / hh; camera.updateProjectionMatrix(); renderer.setSize(ww, hh); }
       }).observe(wrap);
+      updateWoodModel();
     }
 
     function animate3D() {
@@ -3091,7 +3112,7 @@
 
 
       // 기본 치수선
-      if (lastFocusedOption !== 'angled') {
+      if (showDimensions) {
         createDimensionLine(new THREE.Vector3(-hw, topY, hl), new THREE.Vector3(hw, topY, hl), `폭: ${width} mm`, 'black');
         createDimensionLine(new THREE.Vector3(-hw, topY, -hl), new THREE.Vector3(-hw, topY, hl), `길이: ${length} mm`, 'black');
       }
