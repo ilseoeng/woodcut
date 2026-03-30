@@ -2527,9 +2527,37 @@
     // ============================================================
     // ORDER
     // ============================================================
+    function buildDetailText() {
+      const dt = {};
+      selectedProcs.forEach(key => {
+        if (key === 'none') return;
+        const opt = PROC_OPTIONS.find(o => o.key === key);
+        let label = opt ? opt.label : key;
+        const d = procDetails[key] || {};
+        const summaryLines = [];
+        if (key === 'angled' && d.sides) summaryLines.push(label + '(' + d.sides.join(',') + ')');
+        else if (key === 'round' && d.corners) summaryLines.push(label + '(' + d.corners.join(',') + ')');
+        else if (key === 'hinge' && d.count) summaryLines.push(label + '(' + d.count + '개)');
+        else if (key === 'coating' && d.type) summaryLines.push(label + '(' + d.type + ')');
+        else if (key === 'circlecut' && d.holes && d.holes.length > 0) {
+          const hStr = d.holes.map((h, idx) => `[${idx+1}]X:${h.x},Y:${h.y},R:${h.r}`).join(' ');
+          summaryLines.push(label + ' (' + hStr + ')');
+        } else if (key === 'squarecut' && d.holes && d.holes.length > 0) {
+          const hStr = d.holes.map((h, idx) => `[${idx+1}]X:${h.x},Y:${h.y},W:${h.w},H:${h.h}`).join(' ');
+          summaryLines.push(label + ' (' + hStr + ')');
+        } else {
+          summaryLines.push(label);
+        }
+        dt[key] = { summary: summaryLines };
+      });
+      return dt;
+    }
+
     function addToOrder() {
       const p = calculatePrice(); if (!p) return;
       const wd = WOOD_DATA[currentWood];
+      const dt = buildDetailText();
+      const hasProc = selectedProcs.size > 0 && !selectedProcs.has('none');
       orderList.push({
         woodTypeValue: currentWood,
         woodName: wd.name,
@@ -2539,6 +2567,8 @@
         processingSummary: getProcSummary(),
         selectedProcs: Array.from(selectedProcs),
         procDetails: JSON.parse(JSON.stringify(procDetails)),
+        detailText: hasProc ? dt : {},
+        noOption: !hasProc,
         basePrice: p.basePrice,
         additionalCost: p.additionalCost,
         originalTotal: p.origTotal,
