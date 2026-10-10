@@ -1,0 +1,16 @@
+# 자격증명 및 로컬 설정
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+# 업로드된 고객 견적서 이미지
+**/uploads/*
+!**/uploads/.gitkeep
+# 빌드·로그·의존성
+**/node_modules/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db

@@ -1,0 +1,28 @@
+{
+  "name": "woodcut-server",
+  "version": "1.0.0",
+  "description": "아이린가구 AI 목재 견적 채팅 - VM 백엔드 (Express + Gemini + MS-SQL)",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "db:init": "node src/scripts/init-db.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "mssql": "^11.0.1",
+    "nodemailer": "^9.0.3",
+    "solapi": "^6.0.1"
+  },
+  "devDependencies": {
+    "pm2": "^5.4.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
